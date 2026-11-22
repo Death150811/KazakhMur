@@ -28,7 +28,13 @@ KEYWORD_INFO: dict[str, tuple[str, str]] = {
     "лақтыр": ("raise / throw", "вызвать ошибку"),
     "өткіз": ("pass", "пустая инструкция"),
 }
-KEYWORDS = frozenset(KEYWORD_INFO)
+# Полные написания принимаются наравне с краткими. Лексер превращает синоним в основное слово,
+# поэтому парсер и интерпретатор о синонимах ничего не знают.
+KEYWORD_ALIASES: dict[str, str] = {
+    "айнымалы": "айным",   # «переменная»
+    "функция": "функ",     # «функция»
+}
+KEYWORDS = frozenset(KEYWORD_INFO) | frozenset(KEYWORD_ALIASES)
 
 # Виды токенов
 INT, FLOAT, STR, FSTR = "INT", "FLOAT", "STR", "FSTR"

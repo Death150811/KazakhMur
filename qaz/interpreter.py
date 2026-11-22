@@ -15,9 +15,13 @@ from .runtime import (BoundBuiltin, BoundMethod, Builtin, Env, QClass, QFunction
                       suggest, to_repr, to_str, truthy, type_name)
 from .stdlib import BUILTINS, CONSTANTS, METHODS
 
+# Python по умолчанию не печатает целые длиннее 4300 цифр; для факториалов и степеней поднимаем лимит
+if 0 < sys.get_int_max_str_digits() < 150_000:
+    sys.set_int_max_str_digits(150_000)
+
 NUMBER = (int, float)
+MAX_INT_BITS = 300_000            # максимальный размер целого результата умножения/степени (бит)
 MAX_SEQ_RESULT = 10_000_000       # максимальный размер результата повторения строки/списка
-MAX_POW_BITS = 2_000_000          # максимальный размер результата возведения в степень (бит)
 
 
 @dataclass
@@ -399,6 +403,9 @@ class Interpreter:
                 return a - b
         elif op == "*":
             if a_num and b_num:
+                if isinstance(a, int) and isinstance(b, int) \
+                        and a.bit_length() + b.bit_length() > MAX_INT_BITS:
+                    raise QazaqRuntimeError("Результат умножения слишком велик")
                 return a * b
             seq, n = (a, b) if isinstance(a, (str, list)) else (b, a)
             if isinstance(seq, (str, list)) and isinstance(n, int) and not isinstance(n, bool):
@@ -417,7 +424,7 @@ class Interpreter:
         elif op == "**":
             if a_num and b_num:
                 if isinstance(a, int) and isinstance(b, int) and b > 0 and abs(a) > 1 \
-                        and b * a.bit_length() > MAX_POW_BITS:
+                        and b * a.bit_length() > MAX_INT_BITS:
                     raise QazaqRuntimeError("Результат возведения в степень слишком велик")
                 result = a ** b
                 if isinstance(result, complex):

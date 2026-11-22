@@ -24,8 +24,10 @@ def test_every_keyword_and_builtin_is_in_generated_file():
     from qaz.stdlib import BUILTINS
     from qaz.tokens import KEYWORDS
     data = json.loads(gen_language_def.TARGET.read_text(encoding="utf-8"))
-    assert {k["name"] for k in data["keywords"]} == set(KEYWORDS)
-    assert {b["name"] for b in data["builtins"]} == set(BUILTINS)
+    from qaz.tokens import KEYWORD_ALIASES
+    assert {k["name"] for k in data["keywords"]} | set(KEYWORD_ALIASES) == set(KEYWORDS)
+    from qaz.stdlib import ALIASES
+    assert {b["name"] for b in data["builtins"]} | set(ALIASES) == set(BUILTINS)
 
 
 def test_monarch_grammar_uses_lexer_rules():

@@ -8,6 +8,7 @@ from .tokens import (DEDENT, DOT, END, EOF, FLOAT, FPart, FSTR, INDENT, INT, KW,
                      STR, Token)
 
 COMPARE_OPS = {"==", "!=", "<", "<=", ">", ">="}
+MAX_NESTING = 60   # максимальная вложенность выражений и блоков (защита от переполнения стека)
 ASSIGN_OPS = {"=", "+=", "-=", "*=", "/="}
 
 
@@ -15,6 +16,7 @@ class Parser:
     def __init__(self, tokens: list[Token]):
         self.toks = tokens
         self.pos = 0
+        self.nesting = 0      # текущая вложенность выражений и блоков
         self.func_depth = 0   # внутри скольких функций мы находимся
         self.loop_depth = 0   # внутри скольких циклов (в пределах текущей функции)
 
@@ -82,6 +84,12 @@ class Parser:
             hint="Поставьте '.' в конце инструкции. Строки блоков (егер, функ, әзір …) "
                  "заканчиваются двоеточием ':'.")
 
+    def enter(self, tok: Token | None = None) -> None:
+        self.nesting += 1
+        if self.nesting > MAX_NESTING:
+            self.error(f"Слишком глубокая вложенность выражений или блоков (максимум {MAX_NESTING})",
+                       tok, hint="Разбейте выражение на несколько инструкций с промежуточными переменными.")
+
     def skip_nl(self) -> None:
         while self.peek().kind == NL:
             self.advance()
@@ -101,6 +109,13 @@ class Parser:
         return A.Program(body, line=1, col=1)
 
     def parse_block(self) -> list:
+        self.enter()
+        try:
+            return self._parse_block()
+        finally:
+            self.nesting -= 1
+
+    def _parse_block(self) -> list:
         """Тело блока после ':' — либо отступная группа, либо одна инструкция в строке."""
         if self.check(NL):
             self.skip_nl()
@@ -320,7 +335,11 @@ class Parser:
 
     # ---- выражения (приоритет от низшего к высшему) --------------------
     def parse_expr(self):
-        return self.parse_or()
+        self.enter()
+        try:
+            return self.parse_or()
+        finally:
+            self.nesting -= 1
 
     def parse_or(self):
         left = self.parse_and()
@@ -339,7 +358,11 @@ class Parser:
     def parse_not(self):
         if self.check(KW, "емес"):
             op = self.advance()
-            return A.Unary("емес", self.parse_not(), line=op.line, col=op.col)
+            self.enter(op)
+            try:
+                return A.Unary("емес", self.parse_not(), line=op.line, col=op.col)
+            finally:
+                self.nesting -= 1
         return self.parse_comparison()
 
     def parse_comparison(self):
@@ -382,7 +405,11 @@ class Parser:
         t = self.peek()
         if t.kind == OP and t.value in ("-", "+"):
             self.advance()
-            return A.Unary(t.value, self.parse_unary(), line=t.line, col=t.col)
+            self.enter(t)
+            try:
+                return A.Unary(t.value, self.parse_unary(), line=t.line, col=t.col)
+            finally:
+                self.nesting -= 1
         return self.parse_power()
 
     def parse_power(self):
@@ -390,7 +417,11 @@ class Parser:
         if self.check(OP, "**"):
             op = self.advance()
             # правоассоциативно; допускается унарный минус в показателе: 2 ** -1
-            return A.Binary("**", base, self.parse_unary(), line=op.line, col=op.col)
+            self.enter(op)
+            try:
+                return A.Binary("**", base, self.parse_unary(), line=op.line, col=op.col)
+            finally:
+                self.nesting -= 1
         return base
 
     def parse_postfix(self):

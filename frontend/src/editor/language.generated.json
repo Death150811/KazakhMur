@@ -1,6 +1,7 @@
 {
   "builtins": [
     {
+      "aliases": [],
       "category": "core",
       "doc": "Выводит значения через пробел и переводит строку.",
       "name": "жаз",
@@ -8,6 +9,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Читает строку из ввода. Возвращает мәтін.",
       "name": "енгіз",
@@ -15,6 +17,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Длина мәтін, тізім, сөздік или аралық.",
       "name": "ұзындық",
@@ -22,6 +25,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Имя типа значения (мәтін, бүтін, нақты, логика, тізім, сөздік, бос …).",
       "name": "түр",
@@ -29,6 +33,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Преобразует в целое число (дробную часть отбрасывает).",
       "name": "бүтін",
@@ -36,6 +41,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Преобразует в число с плавающей точкой.",
       "name": "нақты",
@@ -43,6 +49,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Преобразует значение в строку.",
       "name": "мәтін",
@@ -50,6 +57,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Истинность значения: 0, \"\", [], {} и бос — жалған.",
       "name": "логика",
@@ -57,6 +65,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Создаёт список из коллекции (или пустой).",
       "name": "тізім",
@@ -64,6 +73,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Создаёт словарь из списка пар [[ключ, значение], …] (или пустой).",
       "name": "сөздік",
@@ -71,6 +81,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Последовательность целых чисел; конец не включается.",
       "name": "аралық",
@@ -78,6 +89,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Абсолютное значение.",
       "name": "модуль",
@@ -85,6 +97,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Наименьшее значение.",
       "name": "минимум",
@@ -92,6 +105,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Наибольшее значение.",
       "name": "максимум",
@@ -99,6 +113,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Сумма чисел коллекции.",
       "name": "қосынды",
@@ -106,6 +121,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Округляет «по-школьному» (0.5 → вверх). Без знаков возвращает бүтін.",
       "name": "дөңгелекте",
@@ -113,6 +129,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Округление вниз до целого.",
       "name": "еден",
@@ -120,6 +137,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Округление вверх до целого.",
       "name": "төбе",
@@ -127,6 +145,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Новый отсортированный список.",
       "name": "сұрып",
@@ -134,6 +153,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Элементы, для которых функция вернула истину.",
       "name": "сүз",
@@ -141,6 +161,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Применяет функцию к каждому элементу.",
       "name": "бейнеле",
@@ -148,6 +169,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "core",
       "doc": "Копия в обратном порядке (тізім, мәтін, аралық).",
       "name": "кері",
@@ -155,6 +177,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "data",
       "doc": "Статистика списка чисел: сөздік с ключами саны, қосынды, орташа, медиана, минимум, максимум, ауытқу (выборочное стандартное отклонение; 0 при одном значении).",
       "name": "талда",
@@ -162,6 +185,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "ai",
       "doc": "Обучает линейную модель y = k·x + b методом наименьших квадратов. Возвращает сөздік-модель; используйте болжа(модель, x).",
       "name": "үйрет",
@@ -169,6 +193,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "ai",
       "doc": "Прогноз по модели из үйрет: для числа — число, для списка — список.",
       "name": "болжа",
@@ -176,6 +201,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "io",
       "doc": "Читает текстовый файл (UTF-8) целиком.",
       "name": "оқы",
@@ -183,6 +209,7 @@
       "unsafe": true
     },
     {
+      "aliases": [],
       "category": "io",
       "doc": "Записывает строку в файл (UTF-8), перезаписывая его.",
       "name": "сақта",
@@ -190,6 +217,7 @@
       "unsafe": true
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Квадратный корень (x ≥ 0).",
       "name": "түбір",
@@ -197,6 +225,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Возведение в степень (как оператор **).",
       "name": "дәреже",
@@ -204,6 +233,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Синус (x в радианах).",
       "name": "синус",
@@ -211,6 +241,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Косинус (x в радианах).",
       "name": "косинус",
@@ -218,6 +249,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Тангенс (x в радианах).",
       "name": "тангенс",
@@ -225,6 +257,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Логарифм (по умолчанию натуральный).",
       "name": "логарифм",
@@ -232,6 +265,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "n! для целого 0 ≤ n ≤ 5000.",
       "name": "факториал",
@@ -239,6 +273,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Число сочетаний C(n, k).",
       "name": "комбинация",
@@ -246,6 +281,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Без аргументов — число [0, 1); с двумя — случайное целое от a до b включительно.",
       "name": "кездейсоқ",
@@ -253,6 +289,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Случайный элемент коллекции.",
       "name": "таңда",
@@ -260,6 +297,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "math",
       "doc": "Задаёт начальное число генератора случайных чисел (для повторяемости).",
       "name": "тұқым",
@@ -267,6 +305,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "science",
       "doc": "Решает уравнение с одним неизвестным: шеш(\"x^2 - 9 = 0\") → [-3, 3]. Нужен SymPy.",
       "name": "шеш",
@@ -274,6 +313,9 @@
       "unsafe": false
     },
     {
+      "aliases": [
+        "туынды"
+      ],
       "category": "science",
       "doc": "Производная выражения: туын(\"x^3\") → \"3*x^2\". Нужен SymPy.",
       "name": "туын",
@@ -281,6 +323,9 @@
       "unsafe": false
     },
     {
+      "aliases": [
+        "интеграл"
+      ],
       "category": "science",
       "doc": "Неопределённый интеграл: интегр(\"x^2\") → \"x^3/3\"; определённый: интегр(\"x^2\", \"x\", 0, 3) → 9. Нужен SymPy.",
       "name": "интегр",
@@ -288,6 +333,7 @@
       "unsafe": false
     },
     {
+      "aliases": [],
       "category": "science",
       "doc": "Строит линейный график и сохраняет в PNG-файл. Нужен Matplotlib. Возвращает имя файла.",
       "name": "сыз",
@@ -300,111 +346,137 @@
   ],
   "keywords": [
     {
+      "aliases": [
+        "айнымалы"
+      ],
       "description": "объявление переменной",
       "equivalent": "var / let",
       "name": "айным"
     },
     {
+      "aliases": [
+        "функция"
+      ],
       "description": "объявление функции",
       "equivalent": "def / function",
       "name": "функ"
     },
     {
+      "aliases": [],
       "description": "условие",
       "equivalent": "if",
       "name": "егер"
     },
     {
+      "aliases": [],
       "description": "иначе; «әйтпесе егер» — else if",
       "equivalent": "else",
       "name": "әйтпесе"
     },
     {
+      "aliases": [],
       "description": "вернуть значение из функции",
       "equivalent": "return",
       "name": "қайтар"
     },
     {
+      "aliases": [],
       "description": "цикл с условием",
       "equivalent": "while",
       "name": "әзір"
     },
     {
+      "aliases": [],
       "description": "перебор: әрбір x ішінде тізім:",
       "equivalent": "for",
       "name": "әрбір"
     },
     {
+      "aliases": [],
       "description": "«внутри»: перебор и проверка принадлежности",
       "equivalent": "in",
       "name": "ішінде"
     },
     {
+      "aliases": [],
       "description": "логическая истина",
       "equivalent": "true",
       "name": "ақиқат"
     },
     {
+      "aliases": [],
       "description": "логическая ложь",
       "equivalent": "false",
       "name": "жалған"
     },
     {
+      "aliases": [],
       "description": "отсутствие значения",
       "equivalent": "null / None",
       "name": "бос"
     },
     {
+      "aliases": [],
       "description": "объявление класса",
       "equivalent": "class",
       "name": "сынып"
     },
     {
+      "aliases": [],
       "description": "выйти из цикла",
       "equivalent": "break",
       "name": "тоқта"
     },
     {
+      "aliases": [],
       "description": "перейти к следующей итерации",
       "equivalent": "continue",
       "name": "жалғас"
     },
     {
+      "aliases": [],
       "description": "логическое И",
       "equivalent": "and",
       "name": "және"
     },
     {
+      "aliases": [],
       "description": "логическое ИЛИ",
       "equivalent": "or",
       "name": "немесе"
     },
     {
+      "aliases": [],
       "description": "логическое НЕ",
       "equivalent": "not",
       "name": "емес"
     },
     {
+      "aliases": [],
       "description": "блок с обработкой ошибок",
       "equivalent": "try",
       "name": "байқа"
     },
     {
+      "aliases": [],
       "description": "обработчик ошибки: қате e:",
       "equivalent": "except",
       "name": "қате"
     },
     {
+      "aliases": [],
       "description": "блок, выполняемый всегда",
       "equivalent": "finally",
       "name": "соңында"
     },
     {
+      "aliases": [],
       "description": "вызвать ошибку",
       "equivalent": "raise / throw",
       "name": "лақтыр"
     },
     {
+      "aliases": [],
       "description": "пустая инструкция",
       "equivalent": "pass",
       "name": "өткіз"

@@ -14,8 +14,8 @@ from __future__ import annotations
 import unicodedata
 
 from .errors import LexicalError
-from .tokens import (DEDENT, DOT, END, EOF, FLOAT, FPart, FSTR, INDENT, INT, KEYWORDS, KW,
-                     NAME, NL, OP, STR, Token)
+from .tokens import (DEDENT, DOT, END, EOF, FLOAT, FPart, FSTR, INDENT, INT, KEYWORD_ALIASES,
+                     KEYWORDS, KW, NAME, NL, OP, STR, Token)
 
 OPERATORS_3: tuple[str, ...] = ()
 OPERATORS_2 = ("**", "//", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=")
@@ -23,6 +23,11 @@ OPERATORS_1 = "+-*/%<>=()[]{},:"
 OPENERS = {"(": ")", "[": "]", "{": "}"}
 CLOSERS = {")": "(", "]": "[", "}": "{"}
 ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "0": "\0", "\\": "\\", '"': '"', "'": "'"}
+
+
+def is_digit(ch: str) -> bool:
+    """Только ASCII-цифры 0-9 (isdigit() принимает и «²», и арабо-индийские цифры)."""
+    return "0" <= ch <= "9"
 
 
 def is_ident_start(ch: str) -> bool:
@@ -107,7 +112,7 @@ class Lexer:
             elif ch == "#":
                 while self.i < n and src[self.i] != "\n":
                     self._adv()
-            elif ch.isdigit():
+            elif is_digit(ch):
                 self._number()
             elif ch in "\"'":
                 self._string(ch, False)
@@ -177,12 +182,12 @@ class Lexer:
         is_float = False
 
         def digits() -> None:
-            while self.i < n and (src[self.i].isdigit() or (
-                    src[self.i] == "_" and self.i + 1 < n and src[self.i + 1].isdigit())):
+            while self.i < n and (is_digit(src[self.i]) or (
+                    src[self.i] == "_" and self.i + 1 < n and is_digit(src[self.i + 1]))):
                 self._adv()
 
         digits()
-        if self.i + 1 < n and src[self.i] == "." and src[self.i + 1].isdigit():
+        if self.i + 1 < n and src[self.i] == "." and is_digit(src[self.i + 1]):
             is_float = True
             self._adv()
             digits()
@@ -190,7 +195,7 @@ class Lexer:
             j = self.i + 1
             if j < n and src[j] in "+-":
                 j += 1
-            if j < n and src[j].isdigit():
+            if j < n and is_digit(src[j]):
                 is_float = True
                 self._adv(j - self.i)
                 digits()
@@ -198,7 +203,12 @@ class Lexer:
             self.error(f"Недопустимый символ '{src[self.i]}' сразу после числа",
                        hint="Отделите число пробелом или оператором.")
         text = src[start:self.i].replace("_", "")
-        self._emit(FLOAT if is_float else INT, float(text) if is_float else int(text), line, col)
+        try:
+            value = float(text) if is_float else int(text)
+        except ValueError:
+            self.error("Число слишком длинное", line, col,
+                       hint="Целые числа ограничены примерно 150 000 цифр.")
+        self._emit(FLOAT if is_float else INT, value, line, col)
 
     # ---- идентификаторы -------------------------------------------------
     def _identifier(self) -> None:
@@ -222,7 +232,7 @@ class Lexer:
                 hint="Похожие буквы (например, латинская i и казахская і) — разные символы. "
                      "Перепечатайте слово одной раскладкой.")
         if text in KEYWORDS:
-            self._emit(KW, text, line, col)
+            self._emit(KW, KEYWORD_ALIASES.get(text, text), line, col)
         else:
             self._emit(NAME, text, line, col)
 

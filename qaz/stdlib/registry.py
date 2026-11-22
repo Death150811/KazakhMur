@@ -8,6 +8,7 @@ from ..runtime import Builtin, type_name
 BUILTINS: dict[str, Builtin] = {}
 METHODS: dict[type, dict[str, Builtin]] = {}
 CONSTANTS: dict[str, object] = {}
+ALIASES: dict[str, str] = {}   # синоним -> основное имя встроенной функции
 CATEGORIES = ("core", "math", "data", "science", "ai", "io")
 
 
@@ -18,6 +19,12 @@ def builtin(name: str, min_args: int = 0, max_args: int | None = None, *, catego
                                  doc, unsafe)
         return fn
     return deco
+
+
+def alias(new_name: str, existing: str) -> None:
+    """Второе имя для встроенной функции (например, туынды = туын)."""
+    BUILTINS[new_name] = BUILTINS[existing]
+    ALIASES[new_name] = existing
 
 
 def method(py_type: type, name: str, min_args: int = 0, max_args: int | None = 0, *,

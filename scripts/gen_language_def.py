@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from backend.app import language_definition  # noqa: E402
+from qaz.language import language_definition  # noqa: E402
 
 TARGET = ROOT / "frontend" / "src" / "editor" / "language.generated.json"
 

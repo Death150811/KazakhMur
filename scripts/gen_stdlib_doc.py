@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from qaz.runtime import type_name  # noqa: E402,F401
-from qaz.stdlib import BUILTINS, CONSTANTS, METHODS  # noqa: E402
+from qaz.stdlib import ALIASES, BUILTINS, CONSTANTS, METHODS  # noqa: E402
 
 TARGET = ROOT / "docs" / "STANDARD_LIBRARY.md"
 
@@ -40,12 +40,15 @@ def render() -> str:
         "",
     ]
     for cat, (title, note) in CATEGORY_TITLES.items():
-        items = [b for b in BUILTINS.values() if b.category == cat]
+        items = [b for name, b in BUILTINS.items() if b.category == cat and name == b.name]
         if not items:
             continue
         lines += [f"## {title}", "", note, "", "| Вызов | Описание |", "|---|---|"]
         for b in items:
             flag = " *(недоступна в безопасном режиме)*" if b.unsafe else ""
+            names = [a for a, main in ALIASES.items() if main == b.name]
+            if names:
+                flag += " Синоним: " + ", ".join(f"`{n}`" for n in names) + "."
             lines.append(f"| `{b.sig.replace(chr(124), chr(92) + chr(124))}` | {b.doc}{flag} |")
         lines.append("")
     lines += ["## Константы", ""]

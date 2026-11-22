@@ -459,3 +459,11 @@ def test_unicode_program():
 def test_safe_mode_blocks_file_functions():
     assert "безопасном" in run_err('оқы("/etc/passwd").', safe=True).message
     assert "безопасном" in run_err('сақта("x.txt", "a").', safe=True).message
+
+
+def test_big_integers_print_and_limits():
+    assert len(run("жаз(факториал(3000)).").strip()) == 9131
+    assert run("айным n = " + "9" * 5000 + ".\nжаз(ұзындық(мәтін(n))).") == "5000\n"
+    e = run_err("айным x = 10 ** 1000.\nәрбір i ішінде аралық(40):\n    x = x * x.")
+    assert "слишком велик" in e.message
+    assert "слишком велик" in run_err("жаз(10 ** 400000).").message

@@ -11,8 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from qaz import __version__
-from qaz.stdlib import BUILTINS, CONSTANTS, METHODS
-from qaz.tokens import KEYWORD_INFO
+from qaz.language import language_definition
 
 from .sandbox import Sandbox, SandboxConfig
 
@@ -93,19 +92,6 @@ def create_app(config: SandboxConfig | None = None, rate_limit: int = RATE_LIMIT
         return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
     return app
-
-
-def language_definition() -> dict:
-    return {
-        "version": __version__,
-        "keywords": [{"name": k, "equivalent": v[0], "description": v[1]}
-                     for k, v in KEYWORD_INFO.items()],
-        "builtins": [{"name": b.name, "category": b.category, "signature": b.sig, "doc": b.doc,
-                      "unsafe": b.unsafe} for b in BUILTINS.values()],
-        "constants": sorted(CONSTANTS),
-        "methods": sorted({name for table in METHODS.values() for name in table}),
-        "literals": ["ақиқат", "жалған", "бос"],
-    }
 
 
 app = create_app()

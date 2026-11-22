@@ -46,4 +46,4 @@ def test_every_builtin_is_documented():
     from qaz.stdlib import BUILTINS
     text = (ROOT / "docs" / "STANDARD_LIBRARY.md").read_text(encoding="utf-8")
     for name in BUILTINS:
-        assert f"`{name}(" in text, name
+        assert f"`{name}(" in text or f"`{name}`" in text, name

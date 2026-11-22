@@ -188,3 +188,10 @@ def test_crlf_and_bom():
 
 def test_tabs_as_indent():
     assert "INDENT" in kinds("егер x:\n\tжаз(1).\n")
+
+
+def test_only_ascii_digits_form_numbers():
+    # «²» и арабо-индийские цифры раньше ронял интерпретатор трейсбеком
+    for bad in ("жаз(5²).", "жаз(²).", "жаз(٣).", "x = 1.٣."):
+        with pytest.raises(LexicalError):
+            tokenize(bad)
