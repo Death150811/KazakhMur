@@ -140,12 +140,13 @@ def _max(interp, *args):
     return _min_max("максимум", max, args)
 
 
-@builtin("қосынды", 1, 2, sig="қосынды(коллекция, начало=0)", doc="Сумма чисел коллекции.")
+@builtin("қосынды", 1, 2, sig="қосынды(коллекция, начало=0)", doc="Сумма чисел коллекции (дробные суммируются точно: 0.1 + 0.2 + 0.3 = 0.6).")
 def _sum(interp, items, start=0):
-    total = expect_number("қосынды", start)
+    from .data import exact_sum
+    values = [expect_number("қосынды", start)]
     for x in as_list("қосынды", items):
-        total += expect_number("қосынды", x)
-    return total
+        values.append(expect_number("қосынды", x))
+    return exact_sum(values)
 
 
 @builtin("дөңгелекте", 1, 2, sig="дөңгелекте(x, знаков=0)",
