@@ -546,19 +546,7 @@ function unavailable(name, why, hint) {
   return () => { throw rtError(`Функция «${name}» ${why}`, hint); };
 }
 const SYMPY_HINT = 'Установите Qazaq локально (pip install "qazaq[science]") или запустите Playground в режиме сервера.';
-for (const name of ['шеш', 'туын', 'интегр']) {
-  def(name, name === 'шеш' ? 1 : 1, name === 'шеш' ? 2 : name === 'туын' ? 2 : 4,
-      unavailable(name, 'недоступна в браузерной версии: нужна библиотека SymPy', SYMPY_HINT));
-}
 def('сыз', 2, 3, unavailable('сыз', 'недоступна в браузерной версии', null));
 def('оқы', 1, 1, unavailable('оқы', 'недоступна в браузерной версии', null));
 def('сақта', 2, 2, unavailable('сақта', 'недоступна в браузерной версии', null));
 
-// ---- синонимы и самопроверка реестра ----
-for (const b of LANG.builtins) {
-  if (!BUILTINS.has(b.name)) throw new Error('Не реализована встроенная функция: ' + b.name);
-  for (const a of b.aliases || []) BUILTINS.set(a, BUILTINS.get(b.name));
-}
-for (const m of LANG.methods) {
-  if (!Object.values(METHODS).some((t) => m in t)) throw new Error('Не реализован метод: ' + m);
-}

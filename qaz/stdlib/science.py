@@ -99,7 +99,7 @@ def _symbol(sympy, expr, var, fname):
 
 
 @builtin("шеш", 1, 2, category="science", sig="шеш(теңдеу, айнымалы?)",
-         doc="Решает уравнение с одним неизвестным: шеш(\"x^2 - 9 = 0\") → [-3, 3]. Нужен SymPy.")
+         doc="Решает уравнение с одним неизвестным: шеш(\"x^2 - 9 = 0\") → [-3, 3]. Нужен SymPy (в браузере сайта — только многочлены с целыми коэффициентами).")
 def _solve(interp, equation, var=None):
     sympy = _need_sympy("шеш")
     text = expect_str("шеш", equation)
@@ -124,7 +124,7 @@ def _solve(interp, equation, var=None):
 
 
 @builtin("туын", 1, 2, category="science", sig="туын(өрнек, айнымалы?)",
-         doc="Производная выражения: туын(\"x^3\") → \"3*x^2\". Нужен SymPy.")
+         doc="Производная выражения: туын(\"x^3\") → \"3*x^2\". Нужен SymPy (в браузере сайта — только многочлены).")
 def _diff(interp, expression, var=None):
     sympy = _need_sympy("туын")
     expr = _parse(sympy, "туын", expect_str("туын", expression))
@@ -133,7 +133,7 @@ def _diff(interp, expression, var=None):
 
 
 @builtin("интегр", 1, 4, category="science", sig="интегр(өрнек, айнымалы?, a?, b?)",
-         doc="Неопределённый интеграл: интегр(\"x^2\") → \"x^3/3\"; определённый: интегр(\"x^2\", \"x\", 0, 3) → 9. Нужен SymPy.")
+         doc="Неопределённый интеграл: интегр(\"x^2\") → \"x^3/3\"; определённый: интегр(\"x^2\", \"x\", 0, 3) → 9. Нужен SymPy (в браузере сайта — только многочлены).")
 def _integrate(interp, expression, var=None, a=None, b=None):
     sympy = _need_sympy("интегр")
     expr = _parse(sympy, "интегр", expect_str("интегр", expression))

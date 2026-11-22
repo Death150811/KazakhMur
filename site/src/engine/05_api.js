@@ -1,3 +1,12 @@
+// ---- синонимы и самопроверка реестра ----
+for (const b of LANG.builtins) {
+  if (!BUILTINS.has(b.name)) throw new Error('Не реализована встроенная функция: ' + b.name);
+  for (const a of b.aliases || []) BUILTINS.set(a, BUILTINS.get(b.name));
+}
+for (const m of LANG.methods) {
+  if (!Object.values(METHODS).some((t) => m in t)) throw new Error('Не реализован метод: ' + m);
+}
+
 // ===================================================================
 // Публичный интерфейс движка
 // ===================================================================

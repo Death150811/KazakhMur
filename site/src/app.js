@@ -39,7 +39,7 @@ const I18N = {
     kw_kicker: 'Словарь', kw_title: 'Ключевые слова',
     kw_sub: 'Двадцать два слова и два полных написания: используйте то, что удобнее. Оба варианта работают одинаково.',
     kw_word: 'Слово', kw_alias: 'Полное написание', kw_like: 'Аналог', kw_desc: 'Назначение',
-    foot_note: 'Сайт работает целиком в браузере: код не отправляется на сервер. Функции шеш, туын, интегр, сыз, оқы, сақта доступны только в локальной версии: qaz run main.qaz.',
+    foot_note: 'Сайт работает целиком в браузере: код не отправляется на сервер. Функции сыз, оқы, сақта, а также шеш, туын, интегр за пределами многочленов (функции, корни выше второй степени, комплексные корни) доступны в локальной версии: qaz run main.qaz.',
     // динамические
     engine_ready: 'Движок готов', engine_worker: 'в фоновом потоке', engine_inline: 'в браузере', engine_server: 'на сервере (Python)', engine_browser: 'Браузер (JS)', engine_pyserver: 'Сервер (Python)',
     running: 'Выполняется…', stopped: 'Остановлено', st_ok: 'Успешно', st_error: 'Ошибка', st_limit: 'Лимит', st_run: 'Идёт',
@@ -47,11 +47,11 @@ const I18N = {
     no_output: '(программа завершилась без вывода)', line: 'строка', column: 'столбец', hint: 'Подсказка', trace: 'Цепочка вызовов',
     copy_report: 'Копировать отчёт', copied: 'Скопировано', copy_failed: 'Не удалось скопировать',
     insert: 'Вставить', inserted: 'Вставлено в редактор', open_in_editor: 'Открыть в редакторе', local_only: 'только локально',
-    synonym: 'синоним', no_match: 'Ничего не найдено', all: 'Все', time: 'время', steps: 'шагов', result: 'Результат',
+    poly_only: 'в браузере: многочлены', synonym: 'синоним', no_match: 'Ничего не найдено', all: 'Все', time: 'время', steps: 'шагов', result: 'Результат',
     file_loaded: 'Файл загружен', file_error: 'Не удалось прочитать файл', stopped_msg: 'Выполнение остановлено',
     docs_ru_only: '',
     cat_core: 'Основные', cat_math: 'Математика', cat_data: 'Данные', cat_ai: 'Прогноз', cat_science: 'Наука', cat_io: 'Файлы',
-    lib_local_note: 'Функции с пометкой «только локально» работают в установленном Qazaq (qaz run), но не в браузере.',
+    lib_local_note: 'Функции с пометкой «только локально» работают в установленном Qazaq (qaz run), но не в браузере. шеш, туын, интегр в браузере понимают многочлены с целыми коэффициентами.',
     none: '—',
   },
   kk: {
@@ -72,14 +72,14 @@ const I18N = {
     kw_kicker: 'Сөздік', kw_title: 'Кілт сөздер',
     kw_sub: 'Жиырма екі сөз және екі толық жазылу: қолайлысын қолданыңыз. Екі нұсқа бірдей жұмыс істейді.',
     kw_word: 'Сөз', kw_alias: 'Толық жазылуы', kw_like: 'Баламасы', kw_desc: 'Мақсаты',
-    foot_note: 'Сайт толығымен браузерде жұмыс істейді: код серверге жіберілмейді. шеш, туын, интегр, сыз, оқы, сақта функциялары тек жергілікті нұсқада жұмыс істейді: qaz run main.qaz.',
+    foot_note: 'Сайт толығымен браузерде жұмыс істейді: код серверге жіберілмейді. сыз, оқы, сақта функциялары, сондай-ақ көпмүшелерден тыс шеш, туын, интегр (функциялар, екінші дәрежеден жоғары түбірлер, комплекс түбірлер) жергілікті нұсқада жұмыс істейді: qaz run main.qaz.',
     engine_ready: 'Қозғалтқыш дайын', engine_worker: 'фондық ағында', engine_inline: 'браузерде', engine_server: 'серверде (Python)', engine_browser: 'Браузер (JS)', engine_pyserver: 'Сервер (Python)',
     running: 'Орындалуда…', stopped: 'Тоқтатылды', st_ok: 'Сәтті', st_error: 'Қате', st_limit: 'Шектеу', st_run: 'Жүріп жатыр',
     syntax_ok: 'Синтаксис дұрыс', syntax_bad: '{line}-жол: {msg}', empty: 'Әзірге нәтиже жоқ. «Іске қосу» түймесін басыңыз (', empty2: ').',
     no_output: '(бағдарлама ештеңе шығармады)', line: 'жол', column: 'баған', hint: 'Кеңес', trace: 'Шақырулар тізбегі',
     copy_report: 'Есепті көшіру', copied: 'Көшірілді', copy_failed: 'Көшіру мүмкін болмады',
     insert: 'Қою', inserted: 'Редакторға қойылды', open_in_editor: 'Редакторда ашу', local_only: 'тек жергілікті',
-    synonym: 'синоним', no_match: 'Ештеңе табылмады', all: 'Барлығы', time: 'уақыт', steps: 'қадам', result: 'Нәтиже',
+    poly_only: 'в браузере: многочлены', synonym: 'синоним', no_match: 'Ештеңе табылмады', all: 'Барлығы', time: 'уақыт', steps: 'қадам', result: 'Нәтиже',
     file_loaded: 'Файл жүктелді', file_error: 'Файлды оқу мүмкін болмады', stopped_msg: 'Орындау тоқтатылды',
     docs_ru_only: 'Функциялар сипаттамасы әзірге орыс тілінде.',
     cat_core: 'Негізгі', cat_math: 'Математика', cat_data: 'Деректер', cat_ai: 'Болжам', cat_science: 'Ғылым', cat_io: 'Файлдар',
@@ -903,7 +903,8 @@ function renderLibFilters() {
     host.appendChild(b);
   });
 }
-function isLocalOnly(b) { return b.category === 'science' || b.category === 'io' || b.unsafe; }
+const POLY_ONLY = new Set(['шеш', 'туын', 'интегр']);
+function isLocalOnly(b) { return !POLY_ONLY.has(b.name) && (b.category === 'science' || b.category === 'io' || b.unsafe); }
 function renderLib() {
   const grid = $('#libGrid');
   const q = state.libQuery.trim().toLowerCase();
@@ -933,6 +934,7 @@ function renderLib() {
     foot.appendChild(cat);
     (b.aliases || []).forEach((a) => { const tg = document.createElement('span'); tg.className = 'tag alias'; tg.textContent = t('synonym') + ' ' + a; foot.appendChild(tg); });
     if (isLocalOnly(b)) { const tg = document.createElement('span'); tg.className = 'tag local'; tg.textContent = t('local_only'); foot.appendChild(tg); }
+    if (POLY_ONLY.has(b.name)) { const tg = document.createElement('span'); tg.className = 'tag alias'; tg.textContent = t('poly_only'); foot.appendChild(tg); }
     const sp = document.createElement('span'); sp.className = 'spacer'; foot.appendChild(sp);
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'btn btn-sm'; btn.textContent = t('insert');

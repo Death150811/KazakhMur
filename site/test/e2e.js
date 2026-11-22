@@ -86,7 +86,7 @@ const offline = async (page) => page.route('**/*', (r) => {
   if (process.env.E2E_VERBOSE) console.log('шаг 9: разделы');
   // 9. разделы
   assert.strictEqual(await page.$$eval('#cards .card', (c) => c.length), 6);
-  assert.strictEqual(await page.$$eval('#tourTabs .tab', (c) => c.length), 7);
+  assert.strictEqual(await page.$$eval('#tourTabs .tab', (c) => c.length), 8);
   assert.strictEqual(await page.$$eval('#kwBody tr', (c) => c.length), 22);
   assert.ok((await page.$$eval('#libGrid .fn', (c) => c.length)) >= 42);
   assert.strictEqual(await page.$$eval('#cards .result .errcard', (c) => c.length), 1);

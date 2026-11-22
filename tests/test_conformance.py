@@ -68,6 +68,9 @@ def all_programs() -> dict[str, tuple[str, str]]:
     progs = {k: (v, STDIN.get(k, "")) for k, v in PROGRAMS.items()}
     for name, code in list(example_programs()) + list(doc_blocks()):
         progs[name] = (code, "")
+    tour = json.loads((ROOT / "site" / "src" / "tour.json").read_text(encoding="utf-8"))
+    for item in tour["cards"] + tour["sections"]:
+        progs[f"tour_{item['id']}_{len(progs)}"] = (item["code"], "")
     return progs
 
 
@@ -151,3 +154,71 @@ def test_engines_agree_on_random_expressions():
                     bad.append((exprs[start + i] if i < 50 else "?", a, b))
     if bad:
         pytest.fail(f"Расхождений: {len(bad)}\n" + "\n".join(str(b) for b in bad[:25]))
+
+
+# ---------------- символьные функции: JS (многочлены) против SymPy ----------------
+def random_polynomials(seed: int, count: int) -> list[str]:
+    import random
+    rng = random.Random(seed)
+
+    def mono():
+        coef = rng.choice([1, 1, 2, 3, 4, 5, 6, 7, 9, 12])
+        deg = rng.choice([0, 1, 1, 2, 2, 3, 3, 4, 5])
+        div = rng.choice([1, 1, 1, 2, 3, 4, 8])
+        if deg == 0:
+            body = str(coef)
+        else:
+            var = "x" if deg == 1 else f"x^{deg}"
+            kind = rng.random()
+            body = var if coef == 1 and kind < 0.7 else (f"{coef}*{var}" if kind < 0.85 else f"{coef}{var}")
+        if div != 1:
+            body += f"/{div}"
+        return body
+
+    def poly():
+        n = rng.randint(1, 4)
+        out = mono() if rng.random() < 0.8 else "-" + mono()
+        for _ in range(n - 1):
+            out += rng.choice([" + ", " - ", "+", "-"]) + mono()
+        return out
+
+    progs = []
+    for _ in range(count):
+        p, q = poly(), poly()
+        kind = rng.randint(0, 4)
+        if kind == 0:
+            progs.append(f'жаз(туын("{p}")).')
+        elif kind == 1:
+            progs.append(f'жаз(интегр("{p}")).')
+        elif kind == 2:
+            progs.append(f'жаз(интегр("{p}", "x", {rng.randint(-3, 2)}, {rng.randint(3, 6)})).')
+        elif kind == 3:
+            progs.append(f'жаз(шеш("{p}")).')
+        else:
+            progs.append(f'жаз(шеш("{p} = {q}")).')
+    # известные примеры
+    progs += ['жаз(шеш("x^2 - 9 = 0")).', 'жаз(шеш("x^2 = 2")).', 'жаз(шеш("2*x + 4")).', 'жаз(шеш("x^3 - x")).',
+              'жаз(шеш("x^2 - x - 1")).', 'жаз(шеш("6*x^2 - 5*x + 1")).', 'жаз(туын("1 - x^2")).',
+              'жаз(интегр("1 - x^2")).', 'жаз(интегр("x^2", "x", 0, 3)).', 'жаз(туын("x^3 + 2*x")).',
+              'жаз(шеш("y^2 = 4")).', 'жаз(туын("2x")).', 'жаз(интегр("0")).', 'жаз(туын("7")).']
+    return progs
+
+
+def test_engines_agree_on_polynomials():
+    pytest.importorskip("sympy")
+    progs = random_polynomials(777, 400)
+    items = [{"name": f"poly_{i}", "stdin": "",
+              "code": f"байқа:\n    {p}\nқате е:\n    жаз(\"ERR\", е).\n"} for i, p in enumerate(progs)]
+    js = node_results(items)
+    bad, unsupported = [], 0
+    for item, prog in zip(items, progs):
+        py = python_result(item["code"])
+        got = js[item["name"]]
+        if "в браузерной версии" in got["stdout"]:
+            unsupported += 1
+            continue
+        if py != got:
+            bad.append((prog, py["stdout"], got["stdout"]))
+    assert unsupported <= len(progs) * 0.25, f"слишком много неподдерживаемых: {unsupported}"
+    if bad:
+        pytest.fail(f"Расхождений: {len(bad)} (неподдерживаемых: {unsupported})\n" + "\n".join(str(b) for b in bad[:20]))
