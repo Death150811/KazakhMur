@@ -45,9 +45,12 @@
 | `qaz/stdlib/io_lib.py` | IO: файлы (отключены в безопасном режиме) |
 | `qaz/cli.py`, `qaz/repl.py` | командная строка и интерактивный режим |
 | `qaz/runner.py` | одноразовый исполнитель для Playground (JSON на входе и выходе) |
-| `backend/app.py` | FastAPI: `/api/run`, `/api/examples`, `/api/language`, `/api/health`, раздача фронтенда |
+| `backend/app.py` | FastAPI: `/api/run`, `/api/examples`, `/api/language`, `/api/health`, раздача сайта |
 | `backend/sandbox.py` | запуск `qaz.runner` в отдельном процессе с лимитами ОС |
-| `frontend/` | React + TypeScript + Monaco Editor |
+| `qaz/language.py` | описание языка как данные (ключевые слова, синонимы, функции) для сайта и подсветки |
+| `site/src/engine/*.js` | JS-движок: лексер, парсер, интерпретатор, `BigInt`-арифметика, форматирование, математика, стандартная библиотека |
+| `site/src/{page.html,style.css,app.js,tour.json}` | сайт: редактор, запуск в Worker, тур, каталог функций |
+| `scripts/build_site.py` | собирает `site/dist/index.html` (одна страница), `fragment.html`, `engine.js` |
 
 ## Ключевые проектные решения
 
@@ -62,9 +65,9 @@
 * **Лимиты исполнения.** `Limits(max_steps, max_depth, timeout, max_output)`; превышение — `ResourceLimitError`,
   которую нельзя поймать из программы.
 * **Единый источник правды.** Ключевые слова (`tokens.py`) и функции (`stdlib/registry.py`) — единственные
-  таблицы. Из них генерируются: подсветка и автодополнение в редакторе (`scripts/gen_language_def.py`),
-  справочник [STANDARD_LIBRARY.md](STANDARD_LIBRARY.md) (`scripts/gen_stdlib_doc.py`). Тесты проверяют,
-  что сгенерированные файлы актуальны.
+  таблицы. `qaz/language.py` отдаёт их как данные: из них собираются подсветка, автодополнение, каталог и
+  таблица слов на сайте (`scripts/build_site.py`) и справочник [STANDARD_LIBRARY.md](STANDARD_LIBRARY.md)
+  (`scripts/gen_stdlib_doc.py`). JS-движок при старте проверяет, что реализовал все функции из этих таблиц.
 * **Зависимости.** Ядро и CLI не требуют сторонних пакетов. SymPy и Matplotlib — только для
   `шеш`/`туын`/`интегр`/`сыз` (`pip install "qazaq[science]"`).
 
@@ -80,9 +83,17 @@ def _square(interp, x):
 ```
 
 После этого: добавьте тест в `tests/test_stdlib.py` и запустите
-`python scripts/gen_language_def.py && python scripts/gen_stdlib_doc.py`.
+`python scripts/gen_stdlib_doc.py && python scripts/build_site.py`.
 
-## Поток данных Playground
+## Сайт
+
+Страница собирается в **один HTML-файл** (CSS, JS, движок и данные внутри; снаружи — только шрифты Google Fonts
+с запасными системными). Редактор написан без библиотек: прозрачный `<textarea>` лежит поверх подсвеченной копии
+текста (подсветка повторяет правила лексера, включая правило точки). Программа запускается в Web Worker,
+созданном из Blob; если Worker недоступен — в основном потоке с лимитом времени. Кнопка «Остановить» завершает
+Worker. Тур и карточки вычисляют вывод тем же движком при отрисовке, поэтому показанный результат всегда настоящий.
+
+## Поток данных серверного режима
 
 ```text
 Браузер (Monaco) ── POST /api/run {code, stdin} ──► FastAPI (backend/app.py)

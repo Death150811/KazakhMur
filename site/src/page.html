@@ -1,1 +1,202 @@
+<title>Qazaq Playground</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0f1d'/%3E%3Ctext x='13' y='46' font-family='Arial,sans-serif' font-size='40' font-weight='800' fill='%233cc8e4'%3EQ%3C/text%3E%3Ccircle cx='49' cy='43' r='5' fill='%23fec50c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Rubik:wght@700;800;900&display=swap">
+<style>
+/*__STYLE__*/
+</style>
 
+<div class="app" id="top">
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="logo" href="#top" aria-label="Qazaq"><span class="logo-word">QAZAQ</span><span class="logo-dot" aria-hidden="true">.</span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="#play" data-i18n="nav_play">Редактор</a>
+        <a href="#about" data-i18n="nav_about">О языке</a>
+        <a href="#tour" data-i18n="nav_tour">Тур</a>
+        <a href="#library" data-i18n="nav_library">Функции</a>
+        <a href="#keywords" data-i18n="nav_keywords">Слова</a>
+      </nav>
+      <div class="controls">
+        <button class="chip-btn" id="langBtn" type="button" aria-label="Language">RU</button>
+        <button class="chip-btn" id="themeBtn" type="button" aria-label="Theme">☾</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ================= HERO + PLAYGROUND ================= -->
+    <section class="hero" id="play">
+      <svg class="sun" viewBox="0 0 200 200" aria-hidden="true" focusable="false"><defs><polygon id="ray" points="100,4 107,36 93,36" fill="currentColor"/></defs><use href="#ray" transform="rotate(0 100 100)"/><use href="#ray" transform="rotate(11.25 100 100)"/><use href="#ray" transform="rotate(22.5 100 100)"/><use href="#ray" transform="rotate(33.75 100 100)"/><use href="#ray" transform="rotate(45 100 100)"/><use href="#ray" transform="rotate(56.25 100 100)"/><use href="#ray" transform="rotate(67.5 100 100)"/><use href="#ray" transform="rotate(78.75 100 100)"/><use href="#ray" transform="rotate(90 100 100)"/><use href="#ray" transform="rotate(101.25 100 100)"/><use href="#ray" transform="rotate(112.5 100 100)"/><use href="#ray" transform="rotate(123.75 100 100)"/><use href="#ray" transform="rotate(135 100 100)"/><use href="#ray" transform="rotate(146.25 100 100)"/><use href="#ray" transform="rotate(157.5 100 100)"/><use href="#ray" transform="rotate(168.75 100 100)"/><use href="#ray" transform="rotate(180 100 100)"/><use href="#ray" transform="rotate(191.25 100 100)"/><use href="#ray" transform="rotate(202.5 100 100)"/><use href="#ray" transform="rotate(213.75 100 100)"/><use href="#ray" transform="rotate(225 100 100)"/><use href="#ray" transform="rotate(236.25 100 100)"/><use href="#ray" transform="rotate(247.5 100 100)"/><use href="#ray" transform="rotate(258.75 100 100)"/><use href="#ray" transform="rotate(270 100 100)"/><use href="#ray" transform="rotate(281.25 100 100)"/><use href="#ray" transform="rotate(292.5 100 100)"/><use href="#ray" transform="rotate(303.75 100 100)"/><use href="#ray" transform="rotate(315 100 100)"/><use href="#ray" transform="rotate(326.25 100 100)"/><use href="#ray" transform="rotate(337.5 100 100)"/><use href="#ray" transform="rotate(348.75 100 100)"/><circle cx="100" cy="100" r="40" fill="currentColor"/></svg>
+      <div class="orn drift hero-orn" aria-hidden="true"></div>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span data-i18n="eyebrow">Язык программирования на казахском</span><span class="tag-ver" id="verTag"></span></p>
+          <h1 class="display">
+            <span class="line"><span class="word">Қарапайымдылық сыртында<span class="dot">.</span></span></span>
+            <span class="line line-2"><span class="word">Қуат ішінде<span class="dot">.</span></span></span>
+          </h1>
+          <p class="lead" data-i18n="lead">Пишите код по-казахски и запускайте его прямо здесь. Без установки и без сервера.</p>
+          <ul class="facts">
+            <li><span data-i18n="fact1">Точка завершает инструкцию</span></li>
+            <li><span data-i18n="fact2">Казахские буквы везде: ә ғ қ ң ө ұ ү һ і</span></li>
+            <li><span data-i18n="fact3">Работает в браузере, результат мгновенный</span></li>
+          </ul>
+          <div class="cta">
+            <a class="btn btn-primary" href="#tour" data-i18n="cta_tour">Тур по языку</a>
+            <a class="btn" href="#library" data-i18n="cta_lib">Все функции</a>
+          </div>
+          <div class="demo" aria-hidden="true">
+            <div class="demo-bar"><i></i><span>qaz</span></div>
+            <div class="demo-body"><div class="demo-line" id="demoLine"></div><div class="demo-line demo-out" id="demoOut" hidden></div></div>
+          </div>
+        </div>
+
+        <div class="pg" id="pg" aria-label="Playground">
+          <div class="pg-bar">
+            <div class="pg-file"><span class="file-dot" aria-hidden="true"></span><span>main.qaz</span></div>
+            <span class="engine" id="engineChip" title="Engine"><span class="engine-dot" aria-hidden="true"></span><span id="engineText">…</span></span>
+            <label class="select" id="engineSelWrap" hidden><span class="sr-only">Engine</span>
+              <select id="engineSel"><option value="browser">JS</option><option value="server">Python</option></select>
+            </label>
+            <span class="spacer"></span>
+            <label class="select"><span class="sr-only" data-i18n="examples">Примеры</span>
+              <select id="exampleSel"><option value="" data-i18n="examples">Примеры</option></select>
+            </label>
+            <button class="btn btn-ghost btn-sm" id="inputBtn" type="button" aria-expanded="false" aria-controls="stdinBox"><span data-i18n="stdin_btn">Ввод</span></button>
+            <button class="btn btn-ghost btn-sm" id="moreBtn" type="button" aria-haspopup="true" aria-expanded="false"><span aria-hidden="true">⋯</span><span class="sr-only" data-i18n="more">Ещё</span></button>
+            <div class="menu" id="moreMenu" hidden role="menu">
+              <button type="button" role="menuitem" id="copyBtn" data-i18n="copy_code">Копировать код</button>
+              <button type="button" role="menuitem" id="openBtn" data-i18n="open_file">Открыть файл .qaz</button>
+              <button type="button" role="menuitem" id="resetBtn" data-i18n="reset">Сбросить</button>
+            </div>
+            <input type="file" id="fileInput" accept=".qaz,.txt,text/plain" hidden>
+          </div>
+
+          <div class="stdin" id="stdinBox" hidden>
+            <label class="stdin-label" for="stdinArea" data-i18n="stdin_label">Ввод для енгіз(): каждая строка — один вызов</label>
+            <textarea id="stdinArea" rows="2" spellcheck="false"></textarea>
+          </div>
+
+          <div class="editor" id="editor">
+            <div class="gutter" id="gutter" aria-hidden="true"><div class="gutter-in" id="gutterIn"></div></div>
+            <div class="code-wrap">
+              <pre class="hl" id="hl" aria-hidden="true"><code id="hlCode"></code></pre>
+              <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="Qazaq"></textarea>
+              <ul class="ac" id="ac" hidden role="listbox"></ul>
+            </div>
+          </div>
+
+          <div class="statusbar">
+            <span class="syntax" id="syntax" role="status"></span>
+            <span class="spacer"></span>
+            <span class="pos" id="pos">1:1</span>
+          </div>
+
+          <div class="runbar">
+            <button class="btn btn-run" id="runBtn" type="button" aria-keyshortcuts="Control+Enter Meta+Enter"><span class="run-ic" aria-hidden="true">▶</span><span id="runText" data-i18n="run">Запустить</span><kbd class="kbd" id="runKbd">Ctrl ↵</kbd></button>
+            <button class="btn" id="stopBtn" type="button" hidden data-i18n="stop">Остановить</button>
+            <span class="spacer"></span>
+            <button class="btn btn-ghost btn-sm" id="clearBtn" type="button" data-i18n="clear">Очистить</button>
+          </div>
+
+          <section class="console" aria-label="Output">
+            <header class="console-head">
+              <h2 data-i18n="output">Вывод</h2>
+              <span class="status" id="statusChip" hidden></span>
+              <span class="meta" id="runMeta"></span>
+            </header>
+            <div class="console-body" id="consoleBody" role="log" aria-live="polite"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ABOUT ================= -->
+    <section class="sec" id="about">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="kicker" data-i18n="about_kicker">Язык</p>
+          <h2 class="sec-title"><span data-i18n="about_title">Простота снаружи, мощность внутри</span><span class="dot">.</span></h2>
+          <p class="sec-sub" data-i18n="about_sub">Шесть идей, ради которых Qazaq сделан именно таким. Каждый пример можно запустить на месте или открыть в редакторе.</p>
+        </header>
+        <div class="cards" id="cards"></div>
+      </div>
+    </section>
+
+    <!-- ================= TOUR ================= -->
+    <section class="sec sec-alt" id="tour">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="kicker" data-i18n="tour_kicker">Тур</p>
+          <h2 class="sec-title"><span data-i18n="tour_title">Язык за десять минут</span><span class="dot">.</span></h2>
+          <p class="sec-sub" data-i18n="tour_sub">Выберите тему: слева код, справа его настоящий вывод. Результат вычисляет тот же движок, что запускает ваш код.</p>
+        </header>
+        <div class="tour">
+          <div class="tabs" id="tourTabs" role="tablist" aria-label="Tour"></div>
+          <div class="tour-panel" id="tourPanel" role="tabpanel" tabindex="0"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LIBRARY ================= -->
+    <section class="sec" id="library">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="kicker" data-i18n="lib_kicker">Стандартная библиотека</p>
+          <h2 class="sec-title"><span data-i18n="lib_title">Встроенные функции</span><span class="dot">.</span></h2>
+          <p class="sec-sub" data-i18n="lib_sub">Одно слово — одно действие. Нажмите «Вставить», и имя функции появится в редакторе.</p>
+        </header>
+        <div class="lib-tools">
+          <label class="search"><span class="sr-only" data-i18n="search">Поиск</span>
+            <input id="libSearch" type="search" placeholder="Поиск…" data-i18n-ph="search_ph" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="filters" id="libFilters" role="group"></div>
+        </div>
+        <p class="note" id="libNote" hidden></p>
+        <div class="lib-grid" id="libGrid"></div>
+      </div>
+    </section>
+
+    <!-- ================= KEYWORDS ================= -->
+    <section class="sec sec-alt" id="keywords">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="kicker" data-i18n="kw_kicker">Словарь</p>
+          <h2 class="sec-title"><span data-i18n="kw_title">Ключевые слова</span><span class="dot">.</span></h2>
+          <p class="sec-sub" data-i18n="kw_sub">Двадцать два слова и два полных написания: используйте то, что удобнее. Оба варианта работают одинаково.</p>
+        </header>
+        <div class="table-wrap">
+          <table class="kw-table">
+            <thead><tr><th data-i18n="kw_word">Слово</th><th data-i18n="kw_alias">Полное написание</th><th data-i18n="kw_like">Аналог</th><th data-i18n="kw_desc">Назначение</th></tr></thead>
+            <tbody id="kwBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="orn drift" aria-hidden="true"></div>
+    <div class="wrap foot-in">
+      <div>
+        <p class="foot-logo"><span class="logo-word">QAZAQ</span><span class="logo-dot" aria-hidden="true">.</span></p>
+        <p class="muted small" id="footVer"></p>
+      </div>
+      <p class="muted small foot-note" data-i18n="foot_note">Сайт работает целиком в браузере: код не отправляется на сервер. Функции шеш, туын, интегр, сыз, оқы, сақта доступны только в локальной версии: qaz run main.qaz.</p>
+    </div>
+  </footer>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</div>
+
+<script>
+/*__DATA__*/
+</script>
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+/*__APP__*/
+</script>

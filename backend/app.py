@@ -7,7 +7,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from qaz import __version__
@@ -17,7 +16,7 @@ from .sandbox import Sandbox, SandboxConfig
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = ROOT / "examples"
-FRONTEND_DIST = ROOT / "frontend" / "dist"
+SITE_DIST = ROOT / "site" / "dist"
 
 RATE_LIMIT = 30          # запусков
 RATE_WINDOW = 60.0       # секунд
@@ -75,17 +74,12 @@ def create_app(config: SandboxConfig | None = None, rate_limit: int = RATE_LIMIT
         """Единый источник правды для подсветки синтаксиса и документации."""
         return language_definition()
 
-    if (FRONTEND_DIST / "index.html").exists():
-        app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
-
-        @app.get("/{path:path}")
-        def spa(path: str):
-            if path.startswith("api/"):
-                raise HTTPException(status_code=404)
-            target = (FRONTEND_DIST / path).resolve()
-            if path and FRONTEND_DIST in target.parents and target.is_file():
-                return FileResponse(target)
-            return FileResponse(FRONTEND_DIST / "index.html")
+    @app.get("/")
+    def index():
+        page = SITE_DIST / "index.html"
+        if not page.exists():
+            return JSONResponse({"detail": "Сайт не собран: python scripts/build_site.py"}, status_code=404)
+        return FileResponse(page)
 
     @app.exception_handler(HTTPException)
     async def http_exc(request: Request, exc: HTTPException):
