@@ -97,7 +97,7 @@ class Interpreter:
         sys.setrecursionlimit(max(old_limit, self.limits.max_depth * 40 + 2000))
         try:
             for stmt in program.body:
-                self.exec(stmt, self.globals)
+                self.run_stmt(stmt, self.globals)
         except (_Return, _Break, _Continue):  # защитные: парсер такого не пропускает
             raise QazaqRuntimeError("Недопустимое использование управляющей инструкции")
         except RecursionError:
@@ -142,7 +142,7 @@ class Interpreter:
     # ------------------------------------------------------------------
     # Диспетчеры
     # ------------------------------------------------------------------
-    def exec(self, node, env: Env) -> None:
+    def run_stmt(self, node, env: Env) -> None:
         self._tick()
         try:
             self._ex[type(node)](node, env)
@@ -152,9 +152,9 @@ class Interpreter:
 
     def exec_block(self, stmts: list, env: Env) -> None:
         for stmt in stmts:
-            self.exec(stmt, env)
+            self.run_stmt(stmt, env)
 
-    def eval(self, node, env: Env):
+    def evaluate(self, node, env: Env):
         try:
             return self._ev[type(node)](node, env)
         except QazaqError as exc:
@@ -165,12 +165,12 @@ class Interpreter:
     # Инструкции
     # ------------------------------------------------------------------
     def x_vardecl(self, node: A.VarDecl, env: Env) -> None:
-        env.declare(node.name, self.eval(node.value, env))
+        env.declare(node.name, self.evaluate(node.value, env))
 
     def x_assign(self, node: A.Assign, env: Env) -> None:
         target = node.target
         if isinstance(target, A.Name):
-            value = self.eval(node.value, env)
+            value = self.evaluate(node.value, env)
             if node.op != "=":
                 try:
                     current = env.lookup(target.name)
@@ -180,15 +180,15 @@ class Interpreter:
             if not env.assign(target.name, value):
                 self._undeclared(target)
         elif isinstance(target, A.Index):
-            obj = self.eval(target.obj, env)
-            idx = self.eval(target.index, env)
-            value = self.eval(node.value, env)
+            obj = self.evaluate(target.obj, env)
+            idx = self.evaluate(target.index, env)
+            value = self.evaluate(node.value, env)
             if node.op != "=":
                 value = self.binop(node.op[0], self.get_index(obj, idx), value)
             self.set_index(obj, idx, value)
         else:  # A.Attr
-            obj = self.eval(target.obj, env)
-            value = self.eval(node.value, env)
+            obj = self.evaluate(target.obj, env)
+            value = self.evaluate(node.value, env)
             if node.op != "=":
                 value = self.binop(node.op[0], self.get_attr(obj, target.name), value)
             if not isinstance(obj, QInstance):
@@ -205,20 +205,20 @@ class Interpreter:
         raise QazaqRuntimeError(f"Переменная «{target.name}» не объявлена", hint=hint)
 
     def x_expr(self, node: A.ExprStmt, env: Env) -> None:
-        value = self.eval(node.expr, env)
+        value = self.evaluate(node.expr, env)
         if self.echo and env is self.globals and value is not None:
             self.write(to_repr(value) + "\n")
 
     def x_if(self, node: A.If, env: Env) -> None:
         for cond, body in node.branches:
-            if truthy(self.eval(cond, env)):
+            if truthy(self.evaluate(cond, env)):
                 self.exec_block(body, env)
                 return
         if node.orelse is not None:
             self.exec_block(node.orelse, env)
 
     def x_while(self, node: A.While, env: Env) -> None:
-        while truthy(self.eval(node.cond, env)):
+        while truthy(self.evaluate(node.cond, env)):
             try:
                 self.exec_block(node.body, env)
             except _Break:
@@ -228,7 +228,7 @@ class Interpreter:
             self._tick()
 
     def x_for(self, node: A.For, env: Env) -> None:
-        iterable = self.eval(node.iterable, env)
+        iterable = self.evaluate(node.iterable, env)
         if isinstance(iterable, dict):
             iterable = list(iterable)
         elif not isinstance(iterable, (list, str, range)):
@@ -259,7 +259,7 @@ class Interpreter:
     def x_classdef(self, node: A.ClassDef, env: Env) -> None:
         base = None
         if node.base is not None:
-            base = self.eval(node.base, env)
+            base = self.evaluate(node.base, env)
             if not isinstance(base, QClass):
                 raise QazaqRuntimeError(f"Базовым классом может быть только сынып, "
                                         f"а не {type_name(base)}")
@@ -268,11 +268,11 @@ class Interpreter:
             if isinstance(stmt, A.FuncDef):
                 cls.members[stmt.name] = QFunction(stmt.name, stmt.params, stmt.body, env)
             elif isinstance(stmt, A.VarDecl):
-                cls.members[stmt.name] = self.eval(stmt.value, env)
+                cls.members[stmt.name] = self.evaluate(stmt.value, env)
         env.declare(node.name, cls)
 
     def x_return(self, node: A.Return, env: Env) -> None:
-        raise _Return(None if node.value is None else self.eval(node.value, env))
+        raise _Return(None if node.value is None else self.evaluate(node.value, env))
 
     def x_break(self, node, env) -> None:
         raise _Break()
@@ -281,7 +281,7 @@ class Interpreter:
         raise _Continue()
 
     def x_raise(self, node: A.Raise, env: Env) -> None:
-        value = self.eval(node.value, env)
+        value = self.evaluate(node.value, env)
         raise QazaqRuntimeError(to_str(value))
 
     def x_try(self, node: A.Try, env: Env) -> None:
@@ -321,7 +321,7 @@ class Interpreter:
                 out.append(part)
                 continue
             expr, spec = part
-            value = self.eval(expr, env)
+            value = self.evaluate(expr, env)
             if spec:
                 try:
                     out.append(format(value, spec))
@@ -334,13 +334,13 @@ class Interpreter:
         return "".join(out)
 
     def e_list(self, node: A.ListLit, env: Env):
-        return [self.eval(item, env) for item in node.items]
+        return [self.evaluate(item, env) for item in node.items]
 
     def e_dict(self, node: A.DictLit, env: Env):
         result = {}
         for knode, vnode in node.pairs:
-            key = self.eval(knode, env)
-            value = self.eval(vnode, env)
+            key = self.evaluate(knode, env)
+            value = self.evaluate(vnode, env)
             try:
                 result[key] = value
             except TypeError:
@@ -350,7 +350,7 @@ class Interpreter:
         return result
 
     def e_unary(self, node: A.Unary, env: Env):
-        v = self.eval(node.operand, env)
+        v = self.evaluate(node.operand, env)
         if node.op == "емес":
             return not truthy(v)
         if not isinstance(v, NUMBER):
@@ -358,20 +358,20 @@ class Interpreter:
         return -v if node.op == "-" else +v
 
     def e_logical(self, node: A.Logical, env: Env):
-        left = self.eval(node.left, env)
+        left = self.evaluate(node.left, env)
         if node.op == "және":
-            return self.eval(node.right, env) if truthy(left) else left
-        return left if truthy(left) else self.eval(node.right, env)
+            return self.evaluate(node.right, env) if truthy(left) else left
+        return left if truthy(left) else self.evaluate(node.right, env)
 
     def e_binary(self, node: A.Binary, env: Env):
-        left = self.eval(node.left, env)
-        right = self.eval(node.right, env)
+        left = self.evaluate(node.left, env)
+        right = self.evaluate(node.right, env)
         return self.binop(node.op, left, right)
 
     def e_compare(self, node: A.Compare, env: Env):
-        left = self.eval(node.left, env)
+        left = self.evaluate(node.left, env)
         for op, rnode in node.ops:
-            right = self.eval(rnode, env)
+            right = self.evaluate(rnode, env)
             if not self.compare(op, left, right):
                 return False
             left = right
@@ -500,13 +500,13 @@ class Interpreter:
                 f"Элементы значения типа {type_name(obj)} нельзя менять присваиванием")
 
     def e_index(self, node: A.Index, env: Env):
-        return self.get_index(self.eval(node.obj, env), self.eval(node.index, env))
+        return self.get_index(self.evaluate(node.obj, env), self.evaluate(node.index, env))
 
     def e_slice(self, node: A.Slice, env: Env):
-        obj = self.eval(node.obj, env)
+        obj = self.evaluate(node.obj, env)
         parts = []
         for sub in (node.lo, node.hi, node.step):
-            v = None if sub is None else self.eval(sub, env)
+            v = None if sub is None else self.evaluate(sub, env)
             if v is not None and (isinstance(v, bool) or not isinstance(v, int)):
                 raise QazaqRuntimeError(f"Границы среза должны быть бүтін, а не {type_name(v)}")
             parts.append(v)
@@ -548,12 +548,12 @@ class Interpreter:
         raise QazaqRuntimeError(f"У значения типа {type_name(obj)} нет метода «{name}»", hint=hint)
 
     def e_attr(self, node: A.Attr, env: Env):
-        return self.get_attr(self.eval(node.obj, env), node.name)
+        return self.get_attr(self.evaluate(node.obj, env), node.name)
 
     # ---- вызовы ---------------------------------------------------------
     def e_call(self, node: A.Call, env: Env):
-        fn = self.eval(node.func, env)
-        args = [self.eval(a, env) for a in node.args]
+        fn = self.evaluate(node.func, env)
+        args = [self.evaluate(a, env) for a in node.args]
         return self.call_value(fn, args, node.line)
 
     def call_value(self, fn, args: list, line: int | None = None):
@@ -608,7 +608,7 @@ class Interpreter:
         local = Env(fn.closure)
         vars_ = local.vars
         for i, p in enumerate(params):
-            vars_[p.name] = args[i] if i < n else self.eval(p.default, fn.closure)
+            vars_[p.name] = args[i] if i < n else self.evaluate(p.default, fn.closure)
         self.depth += 1
         self._tick()
         try:
