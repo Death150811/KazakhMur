@@ -427,6 +427,7 @@ class Parser {
       case T.END: return "точка '.'";
       case T.KW: return `ключевое слово «${tok.value}»`;
       case T.STR: case T.FSTR: return 'строка';
+      case T.FLOAT: return `«${floatRepr(tok.value)}»`;   // 2.0, а не 2 — как печатает Python
       default: return `«${tok.value}»`;
     }
   }

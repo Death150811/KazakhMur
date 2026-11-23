@@ -66,7 +66,7 @@ function checkProgram(source, lang = 'ru') {
 function tokensOf(source) {
   try {
     const toks = new Lexer(source, { square: null }).tokenize();
-    return { tokens: toks.map((t) => ({ kind: t.kind, value: String(t.value), line: t.line, col: t.col, endLine: t.endLine, endCol: t.endCol })), error: null };
+    return { tokens: toks.map((t) => ({ kind: t.kind, value: t.kind === T.FLOAT ? floatRepr(t.value) : String(t.value), line: t.line, col: t.col, endLine: t.endLine, endCol: t.endCol })), error: null };
   } catch (e) {
     if (e instanceof QazaqError) return { tokens: [], error: errorToDict(e) };
     throw e;

@@ -495,6 +495,6 @@ def test_named_argument_errors():
     assert "дважды" in run_err(base + "f(1, a = 2).").message
     assert "нет параметра" in run_err(base + "f(z = 1).").message
     assert "не получила" in run_err(base + "f(a = 1).").message
-    assert "не принимает именованные" in run_err("жаз(x = 1).").message
+    assert "не принимает именованные" in run_err("ұзындық(x = 1).").message
     assert "Позиционный аргумент после" in run_err(base + "f(a = 1, 2).").message
     assert "Повторяющийся" in run_err(base + "f(a = 1, a = 2).").message

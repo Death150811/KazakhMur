@@ -230,3 +230,39 @@ def test_engines_agree_on_polynomials():
     assert unsupported <= len(progs) * 0.25, f"слишком много неподдерживаемых: {unsupported}"
     if bad:
         pytest.fail(f"Расхождений: {len(bad)} (неподдерживаемых: {unsupported})\n" + "\n".join(str(b) for b in bad[:20]))
+
+
+# ---------------- мутанты: испорченные программы (ошибки лексера и парсера тоже должны совпасть) ----------------
+MUTATION_TOKENS = ["*", "**", "жиын(", ")", "(", "[", "]", "{", "}", ".", ",", ":", "кілт =", "соңы =", "*[1]", "**{}",
+                   "әрбір", "ішінде", "функ(*а): а", "жиын([1,", "|>", "?", "!", "бос", "\"", "'", "ф\"{", "}\"", "\n",
+                   "    ", "егер", "әйтпесе", "лақтыр", "қайтар", "=", "+=", ";", "#"]
+
+
+def mutate(src: str, rng) -> str:
+    s = list(src)
+    for _ in range(rng.randint(1, 4)):
+        op, i = rng.random(), rng.randrange(len(s) + 1)
+        if op < 0.4 and s:
+            del s[min(i, len(s) - 1)]
+        elif op < 0.8:
+            s.insert(i, rng.choice(MUTATION_TOKENS))
+        else:
+            j = rng.randrange(len(s) + 1)
+            s[i:i] = list(src[j:j + rng.randint(1, 12)])
+    return "".join(s)
+
+
+def test_engines_agree_on_mutated_programs():
+    import random
+    rng = random.Random(20261123)
+    base = list(PROGRAMS.values())
+    cases = [mutate(rng.choice(base), rng) for _ in range(700)]
+    items = [{"name": f"mut_{i}", "code": c, "stdin": ""} for i, c in enumerate(cases)]
+    js = node_results(items)
+    bad = []
+    for item in items:
+        py = python_result(item["code"])
+        if py != js[item["name"]]:
+            bad.append((item["code"][:200], py["error"], js[item["name"]]["error"]))
+        assert py["error"] is None or py["error"]["title"] != "Внутренняя ошибка", item["code"][:200]
+    assert not bad, f"Расхождений: {len(bad)}\n" + "\n".join(str(b) for b in bad[:5])

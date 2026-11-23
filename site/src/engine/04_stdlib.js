@@ -158,7 +158,14 @@ const toBigInt = (n) => BigInt(n);
 function cpIndex(s, utf16Index) { return hasAstral(s) ? Array.from(s.slice(0, utf16Index)).length : utf16Index; }
 
 // ---------------- Core ----------------
-def('жаз', 0, null, (it, ...args) => { it.write(args.map(toStr).join(' ') + '\n'); return null; });
+def('жаз', 0, null, (it, ...rest) => {
+  const opts = rest.pop();
+  const end = opts.соңы === undefined ? '\n' : opts.соңы, sep = opts.бөлгіш === undefined ? ' ' : opts.бөлгіш;
+  for (const [name, value] of [['соңы', end], ['бөлгіш', sep]])
+    if (typeof value !== 'string') throw rtError(`«жаз»: параметр «${name}» должен быть мәтін, а не ${typeName(value)}`);
+  it.write(rest.map(toStr).join(sep) + end);
+  return null;
+});
 def('енгіз', 0, 1, (it, prompt = '') => {
   if (prompt !== '') it.write(toStr(prompt));
   const line = it.readLine();

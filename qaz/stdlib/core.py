@@ -10,9 +10,14 @@ from .registry import (as_list, builtin, expect_int, expect_number, expect_str, 
 
 
 # ---------------- ввод / вывод ----------------
-@builtin("жаз", 0, None, sig="жаз(a, b, …)", doc="Выводит значения через пробел и переводит строку.")
-def _print(interp, *args):
-    interp.write(" ".join(to_str(a) for a in args) + "\n")
+@builtin("жаз", 0, None, kwonly=("соңы", "бөлгіш"), sig="жаз(a, b, …, соңы=\"\\n\", бөлгіш=\" \")",
+         doc="Выводит значения через пробел и переводит строку. соңы= — чем закончить вывод (по умолчанию перевод строки), "
+             "бөлгіш= — чем разделять значения (по умолчанию пробел). Оба параметра — мәтін.")
+def _print(interp, *args, соңы="\n", бөлгіш=" "):
+    for name, value in (("соңы", соңы), ("бөлгіш", бөлгіш)):
+        if not isinstance(value, str):
+            rt_error(f"«жаз»: параметр «{name}» должен быть мәтін, а не {type_name(value)}")
+    interp.write(бөлгіш.join(to_str(a) for a in args) + соңы)
 
 
 @builtin("енгіз", 0, 1, sig="енгіз(подсказка?)", doc="Читает строку из ввода. Возвращает мәтін.")
