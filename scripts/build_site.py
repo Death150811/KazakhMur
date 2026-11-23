@@ -58,6 +58,7 @@ def build() -> dict[str, Path]:
         "LANGUAGE": lang,
         "EXAMPLES": load_examples(),
         "TOUR": json.loads((SRC / "tour.json").read_text(encoding="utf-8")),
+        "BOOK": json.loads((SRC / "book.json").read_text(encoding="utf-8")),
     }
     page = (SRC / "page.html").read_text(encoding="utf-8")
     css = (SRC / "style.css").read_text(encoding="utf-8")

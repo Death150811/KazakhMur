@@ -61,8 +61,32 @@ function checkProgram(source, lang = 'ru') {
   }
 }
 
+// ---- для «лаборатории» сайта: токены и дерево разбора ----
+function tokensOf(source) {
+  try {
+    const toks = new Lexer(source, { square: null }).tokenize();
+    return { tokens: toks.map((t) => ({ kind: t.kind, value: String(t.value), line: t.line, col: t.col, endLine: t.endLine, endCol: t.endCol })), error: null };
+  } catch (e) {
+    if (e instanceof QazaqError) return { tokens: [], error: errorToDict(e) };
+    throw e;
+  }
+}
+function treeOf(source) {
+  try {
+    const ast = parse(source);
+    // BigInt не сериализуется: числа превращаем в строки, остальное оставляем
+    return { ast: JSON.parse(JSON.stringify(ast, (k, v) => (typeof v === 'bigint' ? v.toString() : v))), error: null };
+  } catch (e) {
+    if (e instanceof QazaqError) return { ast: null, error: errorToDict(e) };
+    if (isStackOverflow(e)) return { ast: null, error: { title: 'Синтаксическая ошибка', message: 'Слишком глубокая вложенность', line: null, column: null, hint: null, trace: [] } };
+    throw e;
+  }
+}
+
 return {
   version: LANG.version,
+  tokens: tokensOf,
+  tree: treeOf,
   run: runProgram,
   check: checkProgram,
   translateError: translateErrorDict,

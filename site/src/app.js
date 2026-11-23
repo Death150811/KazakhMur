@@ -27,6 +27,13 @@ const I18N = {
     lead: 'Пишите код по-казахски и запускайте его прямо здесь. Без установки и без сервера.',
     fact1: 'Точка завершает инструкцию', fact2: 'Казахские буквы везде: ә ғ қ ң ө ұ ү һ і', fact3: 'Работает в браузере, результат мгновенный',
     cta_tour: 'Тур по языку', cta_lib: 'Все функции',
+    tab_tokens: 'Токены', tab_tree: 'Дерево', tokens_note: 'Токены — «слова», на которые лексер режет программу. Нажмите на токен — он выделится в редакторе.', tree_note: 'Дерево разбора (AST): так парсер понял программу. Каждый узел — действие, вложенные узлы — его части.', lab_empty: 'Введите код в редакторе.', lab_err: 'Код нельзя разобрать:', lab_more: 'Показаны первые {n} токенов.',
+    nav_book: 'Книга', book_kicker: 'Книга', book_title: 'Как это сделано — простыми словами',
+    book_sub: 'Каждая глава рассказана трижды: для ребёнка, подробнее и применительно к этому проекту. Подчёркнутые слова — термины: нажмите, и появится пояснение.',
+    book_back: '← К редактору', book_print: 'Сохранить как PDF', toc: 'Содержание', chapter: 'Глава',
+    lbl_kid: 'Простыми словами', lbl_more: 'Подробнее', lbl_here: 'В проекте', lbl_try: 'Попробуйте', lbl_check: 'Проверьте себя',
+    run_it: 'Выполнить', glossary_title: 'Словарь терминов', glossary_sub: 'Все термины книги по алфавиту. Нажмите на слово в тексте — появится то же объяснение.',
+    glossary_ph: 'Найти термин…', term_precise: 'Точнее', term_chapter: 'Глава', term_close: 'Закрыть', term_none: 'Ничего не найдено.',
     settings: 'Настройки', err_lang: 'Ошибки', brackets: 'Скобки', brackets_round: '( ) обычные', brackets_square: '[ ] шаршы', font_size: 'Шрифт', motion: 'Анимации', on: 'вкл', off: 'выкл',
     brackets_converted: 'Код преобразован: скобки поменялись местами',
     examples: 'Примеры', stdin_btn: 'Ввод', more: 'Ещё', copy_code: 'Копировать код', open_file: 'Открыть файл .qaz', reset: 'Сбросить',
@@ -62,6 +69,13 @@ const I18N = {
     lead: 'Кодты қазақша жазыңыз да, дәл осы жерде іске қосыңыз. Орнату да, сервер де қажет емес.',
     fact1: 'Нүкте нұсқауды аяқтайды', fact2: 'Қазақ әріптері барлық жерде: ә ғ қ ң ө ұ ү һ і', fact3: 'Браузерде жұмыс істейді, нәтиже лезде шығады',
     cta_tour: 'Тілге шолу', cta_lib: 'Барлық функциялар',
+    tab_tokens: 'Токендер', tab_tree: 'Ағаш', tokens_note: 'Токендер — лексер бағдарламаны бөлетін «сөздер». Токенді басыңыз — ол редакторда белгіленеді.', tree_note: 'Талдау ағашы (AST): парсер бағдарламаны осылай түсінді. Әр түйін — әрекет, ішкі түйіндер — оның бөліктері.', lab_empty: 'Редакторға код енгізіңіз.', lab_err: 'Кодты талдау мүмкін емес:', lab_more: 'Алғашқы {n} токен көрсетілген.',
+    nav_book: 'Кітап', book_kicker: 'Кітап', book_title: 'Бұл қалай жасалған — қарапайым сөзбен',
+    book_sub: 'Әр тарау үш рет айтылады: бала үшін, толығырақ және осы жоба бойынша. Сызылған сөздер — терминдер: басыңыз, түсіндірме шығады. (Кітап мәтіні орыс тілінде.)',
+    book_back: '← Редакторға', book_print: 'PDF ретінде сақтау', toc: 'Мазмұны', chapter: 'Тарау',
+    lbl_kid: 'Қарапайым сөзбен', lbl_more: 'Толығырақ', lbl_here: 'Жобада', lbl_try: 'Байқап көріңіз', lbl_check: 'Өзіңізді тексеріңіз',
+    run_it: 'Орындау', glossary_title: 'Терминдер сөздігі', glossary_sub: 'Кітаптағы барлық терминдер әліпби бойынша. Мәтіндегі сөзді басыңыз — сол түсіндірме шығады.',
+    glossary_ph: 'Терминді іздеу…', term_precise: 'Дәлірек', term_chapter: 'Тарау', term_close: 'Жабу', term_none: 'Ештеңе табылмады.',
     settings: 'Баптаулар', err_lang: 'Қателер', brackets: 'Жақшалар', brackets_round: '( ) әдеттегі', brackets_square: '[ ] шаршы', font_size: 'Қаріп', motion: 'Анимация', on: 'қосу', off: 'өшіру',
     brackets_converted: 'Код түрлендірілді: жақшалар орын ауыстырды',
     examples: 'Мысалдар', stdin_btn: 'Енгізу', more: 'Тағы', copy_code: 'Кодты көшіру', open_file: '.qaz файлын ашу', reset: 'Қайта қою',
@@ -342,6 +356,7 @@ function setCode(code, opts = {}) {
   store.set('qazaq.code', code);
   renderEditor();
   scheduleCheck(0);
+  scheduleLab();
   if (opts.focus) ta.focus();
   if (opts.top) { ta.scrollTop = 0; syncScroll(); }
 }
@@ -473,6 +488,7 @@ ta.addEventListener('input', () => {
   renderEditor();
   updatePos();
   scheduleCheck();
+  scheduleLab();
   acUpdate();
   refreshSettings();
 });
@@ -898,6 +914,7 @@ $('#fileInput').addEventListener('change', (e) => {
 });
 
 function loadIntoEditor(code) {
+  if (document.body.dataset.view === 'book') { delete document.body.dataset.view; closeTerm(false); try { history.replaceState(null, '', '#play'); } catch (e) { /* ignore */ } }
   sel.value = '';
   setCode(code, { top: true });
   lastResult = null; setStatus(null); renderConsoleEmpty();
@@ -1061,7 +1078,308 @@ function renderDynamic() {
   renderLibFilters();
   renderLib();
   renderKeywords();
+  renderBook();
 }
+
+
+// ---------------------------------------------------------------------------
+// Лаборатория: токены и дерево разбора под редактором
+// ---------------------------------------------------------------------------
+const KIND_RU = { INT: 'целое', FLOAT: 'дробное', STR: 'строка', FSTR: 'ф-строка', NAME: 'имя', KW: 'слово', OP: 'знак', DOT: 'точка-член', END: 'конец', NL: 'новая строка', INDENT: 'отступ+', DEDENT: 'отступ−', EOF: 'конец файла' };
+const NODE_RU = { Literal: 'значение', Name: 'имя', Binary: 'операция', Unary: 'унарная', Logical: 'логика', Compare: 'сравнение', Call: 'вызов', Attr: 'член', Index: 'индекс', ListLit: 'список', DictLit: 'словарь', TupleLit: 'кортеж', FString: 'ф-строка', Lambda: 'лямбда', Ternary: 'условие', Pipe: 'конвейер', ListComp: 'генератор списка', DictComp: 'генератор словаря', VarDecl: 'объявление', VarDeclMulti: 'объявление списком', TargetList: 'цели', ExprStmt: 'выражение', If: 'если', While: 'пока', For: 'цикл', FuncDef: 'функция', ClassDef: 'класс', Return: 'вернуть', Try: 'байқа', Raise: 'бросить', Assign: 'присваивание', Program: 'программа' };
+let labPane = 'out';
+let labTimer = null;
+function setLabPane(pane, focus) {
+  labPane = pane;
+  $$('#ctabs .ctab').forEach((b) => { const on = b.dataset.pane === pane; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
+  $('#consoleBody').hidden = pane !== 'out';
+  $('#labTokens').hidden = pane !== 'tokens';
+  $('#labTree').hidden = pane !== 'tree';
+  renderLab();
+}
+function scheduleLab() { if (labPane === 'out') return; clearTimeout(labTimer); labTimer = setTimeout(renderLab, 250); }
+function renderLab() {
+  if (labPane === 'tokens') renderTokens();
+  else if (labPane === 'tree') renderTree();
+}
+function labError(host, err) {
+  const e = engine.translateError(err, msgLang());
+  host.innerHTML = `<p class="lab-note">${esc(t('lab_err'))}</p><p class="err-msg" style="margin:0;color:var(--danger)">${esc(e.message)}${e.line != null ? ' (' + esc(t('line')) + ' ' + e.line + ')' : ''}</p>`;
+}
+function renderTokens() {
+  const host = $('#labTokens');
+  if (!ta.value.trim()) { host.innerHTML = `<p class="empty">${esc(t('lab_empty'))}</p>`; return; }
+  const r = engine.tokens(ta.value);
+  if (r.error) { labError(host, r.error); return; }
+  const LIMIT = 600;
+  const toks = r.tokens.slice(0, LIMIT);
+  host.innerHTML = `<p class="lab-note">${esc(t('tokens_note'))}</p><div class="tok-list">` + toks.map((k, i) => {
+    const shown = k.kind === 'NL' ? '↵' : k.kind === 'INDENT' ? '→' : k.kind === 'DEDENT' ? '←' : k.kind === 'EOF' ? '∎' : k.value;
+    return `<button type="button" class="tok k-${k.kind}" data-i="${i}" title="${esc(t('line'))} ${k.line}, ${esc(t('column'))} ${k.col}"><span class="v">${esc(shown)}</span><small>${esc(KIND_RU[k.kind] || k.kind)}</small></button>`;
+  }).join('') + '</div>' + (r.tokens.length > LIMIT ? `<p class="lab-note" style="margin-top:8px">${esc(t('lab_more', { n: LIMIT }))}</p>` : '');
+  $$('#labTokens .tok', host).forEach((b) => b.addEventListener('click', () => {
+    const k = toks[Number(b.dataset.i)];
+    selectRange(k.line, k.col, k.endLine, k.endCol);
+  }));
+}
+// выделяет в редакторе диапазон «строка/столбец → строка/столбец» (столбцы считаются с 1, в символах Unicode)
+function selectRange(l1, c1, l2, c2) {
+  const lines = ta.value.split('\n');
+  const offset = (l, c) => { let o = 0; for (let i = 0; i < l - 1 && i < lines.length; i++) o += lines[i].length + 1; const line = lines[l - 1] || ''; return o + Array.from(line).slice(0, Math.max(c - 1, 0)).join('').length; };
+  const a = offset(l1, c1), b = offset(l2 || l1, c2 || c1);
+  ta.focus({ preventScroll: false });
+  ta.setSelectionRange(a, Math.max(a, b));
+  updatePos();
+}
+function treeNode(n, depth) {
+  if (depth > 40) return '<li><span class="n">…</span></li>';
+  const type = n.t || (Array.isArray(n) ? 'список' : 'узел');
+  const prims = [], kids = [];
+  for (const [k, v] of Object.entries(n)) {
+    if (k === 't' || k === 'line' || k === 'col') continue;
+    if (v === null || v === undefined) continue;
+    if (Array.isArray(v)) { if (v.length) kids.push([k, v]); }
+    else if (typeof v === 'object') kids.push([k, v]);
+    else prims.push([k, v]);
+  }
+  const chips = prims.map(([k, v]) => `<span class="f"><i>${esc(k)}=</i>${esc(typeof v === 'string' ? JSON.stringify(v) : String(v))}</span>`).join('');
+  let out = `<li><span class="n">${esc(NODE_RU[type] || type)}<em>${esc(type)}</em></span>${chips}`;
+  if (kids.length) {
+    out += '<ul>' + kids.map(([k, v]) => {
+      const items = Array.isArray(v) ? v : [v];
+      return items.map((it, i) => {
+        const label = `<span class="k">${esc(k)}${Array.isArray(v) && v.length > 1 ? '[' + i + ']' : ''}:</span>`;
+        if (it && typeof it === 'object' && !Array.isArray(it)) return treeNode(it, depth + 1).replace('<li>', '<li>' + label);
+        if (Array.isArray(it)) return `<li>${label}<ul>${it.map((x) => (x && typeof x === 'object' ? treeNode(x, depth + 1) : `<li><span class="f">${esc(String(x))}</span></li>`)).join('')}</ul></li>`;
+        return `<li>${label}<span class="f">${esc(String(it))}</span></li>`;
+      }).join('');
+    }).join('') + '</ul>';
+  }
+  return out + '</li>';
+}
+function renderTree() {
+  const host = $('#labTree');
+  if (!ta.value.trim()) { host.innerHTML = `<p class="empty">${esc(t('lab_empty'))}</p>`; return; }
+  const r = engine.tree(ta.value);
+  if (r.error) { labError(host, r.error); return; }
+  const body = Array.isArray(r.ast.body) ? r.ast.body : [r.ast];
+  host.innerHTML = `<p class="lab-note">${esc(t('tree_note'))}</p><ul class="tree">${body.map((n) => treeNode(n, 0)).join('')}</ul>`;
+}
+$$('#ctabs .ctab').forEach((b) => {
+  b.addEventListener('click', () => setLabPane(b.dataset.pane, false));
+  b.addEventListener('keydown', (e) => {
+    const tabs = $$('#ctabs .ctab');
+    const i = tabs.indexOf(b);
+    if (e.key === 'ArrowRight') { e.preventDefault(); setLabPane(tabs[(i + 1) % tabs.length].dataset.pane, true); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); setLabPane(tabs[(i + tabs.length - 1) % tabs.length].dataset.pane, true); }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Книга и термины
+// ---------------------------------------------------------------------------
+const BOOK = DATA.BOOK;
+const TERMS = Object.fromEntries(BOOK.glossary.map((g) => [g.id, g]));
+const CHAPTERS = Object.fromEntries(BOOK.chapters.map((c, i) => [c.id, Object.assign({ n: i + 1 }, c)]));
+
+// Размечает текст книги: [[id|слово]] — термин-кнопка, `код`, **жирный**. Весь остальной текст экранируется.
+function rich(text) {
+  let h = esc(text);
+  h = h.replace(/\[\[([a-z0-9-]+)\|(.+?)\]\]/g, (m, id, label) => (TERMS[id]
+    ? `<button type="button" class="term" data-term="${id}" aria-expanded="false">${label}</button>` : label));
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return h;
+}
+const plain = (text) => text.replace(/\[\[[a-z0-9-]+\|(.+?)\]\]/g, '$1').replace(/[`*]/g, '');
+
+function pipelineHtml() {
+  const stages = [
+    ['1', 'Текст', 'то, что вы напечатали', '<code>жаз(2 + 3).</code>'],
+    ['2', 'Лексер', 'режет на токены', '<code>жаз</code> <code>(</code> <code>2</code> <code>+</code> <code>3</code> <code>)</code> <code>.</code>'],
+    ['3', 'Парсер', 'строит дерево', '<code>вывод</code><br>└ <code>сложить</code><br>&nbsp;&nbsp;├ <code>2</code><br>&nbsp;&nbsp;└ <code>3</code>'],
+    ['4', 'Интерпретатор', 'выполняет дерево', '2 + 3 → <code>5</code>'],
+    ['5', 'Результат', 'вывод или ошибка', '<code>5</code>'],
+  ];
+  return '<ol class="pipe" aria-label="Pipeline">' + stages.map((st, i) =>
+    `<li class="pipe-st"><span class="pipe-n" aria-hidden="true">${st[0]}</span><span class="pipe-name"><b>${st[1]}</b><span class="pipe-d">${st[2]}</span></span><span class="pipe-ex">${st[3]}</span></li>`
+    + (i < stages.length - 1 ? '<li class="pipe-arrow" aria-hidden="true">↓</li>' : '')).join('') + '</ol>';
+}
+
+function blockHtml(b) {
+  if (b.p) return `<p>${rich(b.p)}</p>`;
+  if (b.h) return `<h4>${esc(b.h)}</h4>`;
+  if (b.ul) return '<ul>' + b.ul.map((x) => `<li>${rich(x)}</li>`).join('') + '</ul>';
+  if (b.ol) return '<ol>' + b.ol.map((x) => `<li>${rich(x)}</li>`).join('') + '</ol>';
+  if (b.note) return `<p class="book-note">${rich(b.note)}</p>`;
+  if (b.pipeline) return pipelineHtml();
+  return '';
+}
+
+function renderBook() {
+  const toc = $('#bookToc'), body = $('#bookBody');
+  toc.innerHTML = `<p class="toc-title">${esc(t('toc'))}</p><ol>` +
+    BOOK.chapters.map((c, i) => `<li><a href="#book/${c.id}" data-ch="${c.id}"><span class="toc-n">${i + 1}</span>${esc(c.title)}</a></li>`).join('') +
+    `<li><a href="#book/glossary" data-ch="glossary"><span class="toc-n">∗</span>${esc(t('glossary_title'))}</a></li></ol>`;
+  body.innerHTML = '';
+  BOOK.chapters.forEach((c, i) => {
+    const sec = document.createElement('section');
+    sec.className = 'chapter';
+    sec.id = 'ch-' + c.id;
+    sec.setAttribute('aria-labelledby', 'cht-' + c.id);
+    sec.innerHTML =
+      `<p class="chapter-num">${esc(t('chapter'))} ${i + 1}</p>` +
+      `<h3 class="chapter-title" id="cht-${c.id}">${esc(c.title)}</h3>` +
+      `<p class="chapter-lead">${rich(c.lead)}</p>` +
+      `<aside class="kid"><span class="badge">${esc(t('lbl_kid'))}</span><p>${rich(c.kid)}</p></aside>` +
+      `<div class="chapter-body"><span class="badge badge-alt">${esc(t('lbl_more'))}</span>${c.body.map(blockHtml).join('')}</div>` +
+      `<p class="here"><span class="badge badge-alt">${esc(t('lbl_here'))}</span> ${rich(c.here)}</p>`;
+    if (c.try) {
+      const box = document.createElement('div');
+      box.className = 'tryit';
+      box.innerHTML = `<p class="tryit-head"><span class="badge badge-alt">${esc(t('lbl_try'))}</span> ${rich(c.try.caption)}</p>`;
+      box.appendChild(codeBlock(c.try.code));
+      const acts = document.createElement('div');
+      acts.className = 'tryit-actions';
+      const run = document.createElement('button');
+      run.type = 'button'; run.className = 'btn btn-sm btn-run-sm'; run.textContent = t('run_it');
+      const out = document.createElement('div');
+      out.className = 'result';
+      out.hidden = true;
+      run.addEventListener('click', async () => {
+        run.disabled = true;
+        const res = await runner.run(c.try.code, '');
+        run.disabled = false;
+        out.hidden = false;
+        out.innerHTML = '';
+        const lbl = document.createElement('span');
+        lbl.className = 'lbl'; lbl.textContent = t('result');
+        const inner = document.createElement('div');
+        renderOutput(inner, res, c.try.code, {});
+        out.appendChild(lbl); out.appendChild(inner);
+      });
+      acts.appendChild(run);
+      acts.appendChild(openBtn(c.try.code));
+      box.appendChild(acts);
+      box.appendChild(out);
+      sec.appendChild(box);
+    }
+    if (c.check && c.check.length) {
+      const d = document.createElement('details');
+      d.className = 'check';
+      d.innerHTML = `<summary>${esc(t('lbl_check'))}</summary><ol>${c.check.map((q) => `<li>${esc(q)}</li>`).join('')}</ol>`;
+      sec.appendChild(d);
+    }
+    body.appendChild(sec);
+  });
+  // словарь
+  const gl = document.createElement('section');
+  gl.className = 'chapter glossary';
+  gl.id = 'ch-glossary';
+  gl.setAttribute('aria-labelledby', 'cht-glossary');
+  gl.innerHTML = `<p class="chapter-num">∗</p><h3 class="chapter-title" id="cht-glossary">${esc(t('glossary_title'))}</h3><p class="chapter-lead">${esc(t('glossary_sub'))}</p>` +
+    `<div class="gl-search"><label class="sr-only" for="glQuery">${esc(t('glossary_ph'))}</label><input id="glQuery" type="search" placeholder="${esc(t('glossary_ph'))}" autocomplete="off" spellcheck="false"></div>` +
+    '<dl class="gl-list" id="glList"></dl><p class="empty" id="glEmpty" hidden></p>';
+  body.appendChild(gl);
+  const sorted = BOOK.glossary.slice().sort((a, b) => a.term.localeCompare(b.term, 'ru'));
+  $('#glList').innerHTML = sorted.map((g) =>
+    `<div class="gl-item" data-q="${esc((g.term + ' ' + g.short).toLowerCase())}"><dt id="gl-${g.id}">${esc(g.term)}</dt><dd>${esc(g.short)}<span class="gl-more">${esc(g.more)}</span></dd></div>`).join('');
+  $('#glEmpty').textContent = t('term_none');
+  $('#glQuery').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    let shown = 0;
+    $$('#glList .gl-item').forEach((it) => { const ok = !q || it.dataset.q.includes(q); it.hidden = !ok; if (ok) shown++; });
+    $('#glEmpty').hidden = shown > 0;
+  });
+  observeToc();
+}
+
+let tocObserver = null;
+function observeToc() {
+  if (tocObserver) tocObserver.disconnect();
+  if (!('IntersectionObserver' in window)) return;
+  tocObserver = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      const id = en.target.id.replace('ch-', '');
+      $$('#bookToc a').forEach((a) => { if (a.dataset.ch === id) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  $$('#bookBody .chapter').forEach((s) => tocObserver.observe(s));
+}
+
+// Окно с пояснением термина
+const termPop = $('#termPop');
+let termBtn = null;
+function closeTerm(returnFocus = true) {
+  if (termPop.hidden) return;
+  termPop.hidden = true;
+  if (termBtn) { termBtn.setAttribute('aria-expanded', 'false'); if (returnFocus) termBtn.focus({ preventScroll: true }); }
+  termBtn = null;
+}
+function openTerm(btn) {
+  const g = TERMS[btn.dataset.term];
+  if (!g) return;
+  if (termBtn && termBtn !== btn) termBtn.setAttribute('aria-expanded', 'false');
+  termBtn = btn;
+  btn.setAttribute('aria-expanded', 'true');
+  $('#tpTerm').textContent = g.term;
+  $('#tpShort').textContent = g.short;
+  $('#tpMore').innerHTML = `<span class="tp-lbl">${esc(t('term_precise'))}.</span> ${esc(g.more)}`;
+  const ch = CHAPTERS[g.chapter];
+  const link = $('#tpLink');
+  link.textContent = ch ? `${t('term_chapter')} ${ch.n}: ${ch.title} →` : '';
+  link.hidden = !ch;
+  link.href = '#book/' + g.chapter;
+  $('#tpClose').setAttribute('aria-label', t('term_close'));
+  termPop.hidden = false;
+  placeTerm(btn);
+  termPop.focus({ preventScroll: true });
+}
+function placeTerm(btn) {
+  const r = btn.getBoundingClientRect();
+  const pw = Math.min(360, window.innerWidth - 24);
+  termPop.style.width = pw + 'px';
+  let left = r.left + window.scrollX + r.width / 2 - pw / 2;
+  left = Math.max(window.scrollX + 12, Math.min(left, window.scrollX + window.innerWidth - pw - 12));
+  termPop.style.left = left + 'px';
+  const ph = termPop.offsetHeight;
+  let top = r.bottom + window.scrollY + 10;
+  if (r.bottom + ph + 20 > window.innerHeight && r.top > ph + 20) top = r.top + window.scrollY - ph - 10;
+  termPop.style.top = top + 'px';
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('.term');
+  if (btn) { e.preventDefault(); if (termBtn === btn && !termPop.hidden) closeTerm(false); else openTerm(btn); return; }
+  if (!termPop.hidden && !termPop.contains(e.target)) closeTerm(false);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !termPop.hidden) { e.stopPropagation(); closeTerm(true); } }, true);
+$('#tpClose').addEventListener('click', () => closeTerm(true));
+$('#tpLink').addEventListener('click', () => closeTerm(false));
+window.addEventListener('resize', () => { if (!termPop.hidden && termBtn) placeTerm(termBtn); });
+
+// Переключение между «редактор / разделы» и «книга» по адресу (#book, #book/lexer)
+function showBook(chId) {
+  document.body.dataset.view = 'book';
+  closeTerm(false);
+  const el = chId && document.getElementById('ch-' + chId);
+  if (el) el.scrollIntoView({ block: 'start' });
+  else window.scrollTo(0, 0);
+}
+function showMain(id) {
+  delete document.body.dataset.view;
+  closeTerm(false);
+  const el = id && id !== 'top' && document.getElementById(id);
+  if (el) el.scrollIntoView({ block: 'start' });
+  else if (id === 'top' || !id) window.scrollTo(0, 0);
+}
+function route() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h === 'book' || h.startsWith('book/')) showBook(h.split('/')[1]);
+  else showMain(h);
+}
+window.addEventListener('hashchange', route);
+$('#bookPrint').addEventListener('click', () => { document.body.dataset.view = 'book'; window.print(); });
 
 // ---------------------------------------------------------------------------
 // Тема и язык
@@ -1099,6 +1417,7 @@ $('#footVer').textContent = 'Qazaq ' + LANGUAGE.version + ' · MIT';
 ta.value = store.get('qazaq.code') || examples[0].code;
 applyI18n();
 renderDynamic();
+route();
 applyFontSize(state.fontPx);
 applyMotion(state.motionOff);
 renderEditor();

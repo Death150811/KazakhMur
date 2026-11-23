@@ -135,6 +135,42 @@ const offline = async (page) => page.route('**/*', (r) => {
   await page.waitForFunction(() => /Ошибка выполнения/.test(document.querySelector('#consoleBody .errcard').textContent));
   await page.keyboard.press('Escape');
 
+  if (process.env.E2E_VERBOSE) console.log('шаг 11c: лаборатория: токены и дерево');
+  // 11c. вкладки «Токены» и «Дерево» показывают разбор текущего кода
+  await page.evaluate((c) => window.__qazaq.setCode(c), 'жаз(2 + 3).');
+  await page.click('#tabTokens');
+  await page.waitForSelector('#labTokens .tok');
+  const toks = await page.$$eval('#labTokens .tok .v', (e) => e.map((x) => x.textContent));
+  assert.deepStrictEqual(toks.slice(0, 7), ['жаз', '(', '2', '+', '3', ')', '.']);
+  await page.click('#labTokens .tok >> nth=2');
+  assert.strictEqual(await page.evaluate(() => { const t = document.querySelector('#code'); return t.value.slice(t.selectionStart, t.selectionEnd); }), '2');
+  await page.click('#tabTree');
+  await page.waitForSelector('#labTree .tree .n');
+  assert.match(await page.textContent('#labTree .tree'), /вызов/);
+  assert.match(await page.textContent('#labTree .tree'), /Call/);
+  await page.evaluate((c) => window.__qazaq.setCode(c), 'жаз(2 +).');
+  await page.waitForFunction(() => /Код нельзя разобрать|Кодты талдау/.test(document.querySelector('#labTree').textContent));
+  await page.click('#tabOut');
+
+  if (process.env.E2E_VERBOSE) console.log('шаг 11d: книга: термины и главы');
+  // 11d. книга открывается по адресу, термин показывает пояснение и закрывается по Esc
+  await page.goto(URL + '#book/lexer');
+  await page.waitForSelector('#bookBody .chapter');
+  assert.strictEqual(await page.evaluate(() => document.body.dataset.view), 'book');
+  assert.strictEqual(await page.$$eval('#bookBody .chapter', (c) => c.length), 15);
+  await page.click('#ch-lexer .term >> nth=0');
+  await page.waitForSelector('#termPop:not([hidden])');
+  assert.match(await page.textContent('#tpShort'), /слова/);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#termPop', { state: 'hidden' });
+  await page.click('#ch-what .tryit .btn-run-sm');
+  await page.waitForSelector('#ch-what .tryit .result:not([hidden]) .stdout');
+  assert.match(await page.textContent('#ch-what .tryit .result .stdout'), /Сәлем, Әлем!/);
+  await page.fill('#glQuery', 'лексер');
+  assert.strictEqual(await page.$$eval('#glList .gl-item:not([hidden])', (e) => e.length), 1);
+  await page.click('.nav a[href="#play"]');
+  await page.waitForFunction(() => document.body.dataset.view === undefined);
+
   if (process.env.E2E_VERBOSE) console.log('шаг 12: мобильная версия');
   // 12. мобильная версия
   const m = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

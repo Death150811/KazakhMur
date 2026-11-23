@@ -75,6 +75,10 @@ def all_programs() -> dict[str, tuple[str, str]]:
     tour = json.loads((ROOT / "site" / "src" / "tour.json").read_text(encoding="utf-8"))
     for item in tour["cards"] + tour["sections"]:
         progs[f"tour_{item['id']}_{len(progs)}"] = (item["code"], "")
+    book = json.loads((ROOT / "site" / "src" / "book.json").read_text(encoding="utf-8"))
+    for chapter in book["chapters"]:
+        if chapter["try"]:
+            progs[f"book_{chapter['id']}"] = (chapter["try"]["code"], "")
     return progs
 
 

@@ -20,11 +20,31 @@ const URL = 'file://' + path.join(__dirname, '..', 'dist', 'index.html');
     await page.waitForSelector('#consoleBody .stdout');
     await page.evaluate(axeSrc);
     const res = await page.evaluate(async () => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa'] }));
-    for (const v of res.violations) {
-      failed++;
-      console.log(`${label}: ${v.id} (${v.impact}) — ${v.help}`);
-      v.nodes.slice(0, 3).forEach((n) => console.log('   ', n.target.join(' '), '|', ((n.any[0] && n.any[0].message) || '').slice(0, 120)));
-    }
+    const report = (where, r) => {
+      for (const v of r.violations) {
+        failed++;
+        console.log(`${label} / ${where}: ${v.id} (${v.impact}) — ${v.help}`);
+        v.nodes.slice(0, 3).forEach((n) => console.log('   ', n.target.join(' '), '|', ((n.any[0] && n.any[0].message) || '').slice(0, 120)));
+      }
+    };
+    report('главная', res);
+    // вкладки лаборатории и меню настроек
+    await page.click('#tabTree');
+    await page.waitForSelector('#labTree .tree');
+    report('дерево', await page.evaluate(async () => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa'] })));
+    await page.click('#tabTokens');
+    await page.waitForSelector('#labTokens .tok');
+    report('токены', await page.evaluate(async () => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa'] })));
+    await page.click('#settingsBtn');
+    report('настройки', await page.evaluate(async () => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa'] })));
+    await page.keyboard.press('Escape');
+    // книга: все главы, словарь и открытая подсказка термина
+    await page.goto(URL + '#book');
+    await page.waitForSelector('#bookBody .chapter');
+    report('книга', await page.evaluate(async () => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa'] })));
+    await page.click('#ch-parser .term >> nth=0');
+    await page.waitForSelector('#termPop:not([hidden])');
+    report('подсказка термина', await page.evaluate(async () => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa'] })));
   }
   await browser.close();
   if (failed) { console.error('A11Y FAIL: нарушений ' + failed); process.exit(1); }
