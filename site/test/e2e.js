@@ -191,6 +191,20 @@ const offline = async (page) => page.route('**/*', (r) => {
   await page.click('.nav a[href="#play"]');
   await page.waitForFunction(() => document.body.dataset.view === undefined);
 
+  if (process.env.E2E_VERBOSE) console.log('шаг 11f: ссылка на код');
+  // 11f. «Скопировать ссылку на код»: адрес содержит код; новая страница по этому адресу открывает тот же код
+  const shared = 'айным өлшем = 7.\nжаз("Сәлем, 😀!", өлшем).';
+  await page.evaluate((c) => window.__qazaq.setCode(c), shared);
+  const link = await page.evaluate(() => window.__qazaq.shareUrl(document.querySelector('#code').value));
+  assert.match(link, /#code=[A-Za-z0-9_-]+$/);
+  const p2 = await ctx.newPage();
+  p2.on('pageerror', (e) => errors.push('share: ' + e.message));
+  await offline(p2);
+  await p2.goto(link);
+  await p2.waitForSelector('#runBtn');
+  assert.strictEqual(await p2.inputValue('#code'), shared);
+  await p2.close();
+
   if (process.env.E2E_VERBOSE) console.log('шаг 12: мобильная версия');
   // 12. мобильная версия
   const m = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

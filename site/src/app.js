@@ -39,7 +39,7 @@ const I18N = {
     glossary_ph: 'Найти термин…', term_precise: 'Точнее', term_chapter: 'Глава', term_close: 'Закрыть', term_none: 'Ничего не найдено.',
     settings: 'Настройки', err_lang: 'Ошибки', brackets: 'Скобки', brackets_round: '( ) обычные', brackets_square: '[ ] шаршы', font_size: 'Шрифт', motion: 'Анимации', on: 'вкл', off: 'выкл',
     brackets_converted: 'Код преобразован: скобки поменялись местами',
-    examples: 'Примеры', stdin_btn: 'Ввод', more: 'Ещё', copy_code: 'Копировать код', open_file: 'Открыть файл .qaz', reset: 'Сбросить',
+    examples: 'Примеры', stdin_btn: 'Ввод', more: 'Ещё', copy_code: 'Копировать код', share_link: 'Скопировать ссылку на код', share_done: 'Ссылка на код скопирована', share_big: 'Код слишком длинный для ссылки (максимум 6000 знаков)', open_file: 'Открыть файл .qaz', reset: 'Сбросить',
     stdin_label: 'Ввод для енгіз(): каждая строка — один вызов', run: 'Запустить', stop: 'Остановить', clear: 'Очистить', output: 'Вывод',
     about_kicker: 'Язык', about_title: 'Простота снаружи, мощность внутри',
     about_sub: 'Шесть идей, ради которых Qazaq сделан именно таким. Каждый пример можно запустить на месте или открыть в редакторе.',
@@ -84,7 +84,7 @@ const I18N = {
     glossary_ph: 'Терминді іздеу…', term_precise: 'Дәлірек', term_chapter: 'Тарау', term_close: 'Жабу', term_none: 'Ештеңе табылмады.',
     settings: 'Баптаулар', err_lang: 'Қателер', brackets: 'Жақшалар', brackets_round: '( ) әдеттегі', brackets_square: '[ ] шаршы', font_size: 'Қаріп', motion: 'Анимация', on: 'қосу', off: 'өшіру',
     brackets_converted: 'Код түрлендірілді: жақшалар орын ауыстырды',
-    examples: 'Мысалдар', stdin_btn: 'Енгізу', more: 'Тағы', copy_code: 'Кодты көшіру', open_file: '.qaz файлын ашу', reset: 'Қайта қою',
+    examples: 'Мысалдар', stdin_btn: 'Енгізу', more: 'Тағы', copy_code: 'Кодты көшіру', share_link: 'Кодқа сілтемені көшіру', share_done: 'Кодқа сілтеме көшірілді', share_big: 'Код сілтеме үшін тым ұзын (ең көбі 6000 таңба)', open_file: '.qaz файлын ашу', reset: 'Қайта қою',
     stdin_label: 'енгіз() үшін деректер: әр жол — бір шақыру', run: 'Іске қосу', stop: 'Тоқтату', clear: 'Тазалау', output: 'Нәтиже',
     about_kicker: 'Тіл', about_title: 'Қарапайымдылық сыртында, қуат ішінде',
     about_sub: 'Qazaq дәл осылай жасалуының алты идеясы. Әр мысалды сол жерде іске қосуға немесе редакторда ашуға болады.',
@@ -907,6 +907,35 @@ moreBtn.addEventListener('click', (e) => { e.stopPropagation(); moreMenu.hidden 
 document.addEventListener('click', (e) => { if (!moreMenu.hidden && !moreMenu.contains(e.target)) closeMenu(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 $('#copyBtn').addEventListener('click', () => { closeMenu(); copyText(ta.value); });
+
+// Ссылка на код: код кодируется в адрес страницы (#code=…), сервер не нужен
+const SHARE_MAX = 6000;
+function b64urlEncode(text) {
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(s) {
+  const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+}
+function shareUrl(code) {
+  return location.href.split('#')[0] + '#code=' + b64urlEncode(code);
+}
+function codeFromHash() {
+  const m = /^#code=([A-Za-z0-9_-]+)$/.exec(location.hash);
+  if (!m) return null;
+  try { return b64urlDecode(m[1]); } catch (e) { return null; }
+}
+$('#shareBtn').addEventListener('click', () => {
+  closeMenu();
+  if (ta.value.length > SHARE_MAX) { toast(t('share_big')); return; }
+  const url = shareUrl(ta.value);
+  copyText(url);
+  toast(t('share_done'));
+});
+
 $('#resetBtn').addEventListener('click', () => { closeMenu(); sel.value = ''; setCode(examples[0].code, { top: true }); lastResult = null; setStatus(null); renderConsoleEmpty(); });
 $('#openBtn').addEventListener('click', () => { closeMenu(); $('#fileInput').click(); });
 $('#fileInput').addEventListener('change', (e) => {
@@ -1501,7 +1530,9 @@ state.fontPx = Number(store.get('qazaq.fs')) || 14;
 state.motionOff = store.get('qazaq.motion') === 'off';
 $('#verTag').textContent = 'v' + LANGUAGE.version;
 $('#footVer').textContent = 'Qazaq ' + LANGUAGE.version + ' · MIT';
-ta.value = store.get('qazaq.code') || examples[0].code;
+const sharedCode = codeFromHash();
+ta.value = sharedCode !== null ? sharedCode : (store.get('qazaq.code') || examples[0].code);
+if (sharedCode !== null) { store.set('qazaq.code', sharedCode); try { history.replaceState(null, '', location.href.split('#')[0] + '#play'); } catch (e) { /* ignore */ } }
 applyI18n();
 renderDynamic();
 route();
@@ -1563,5 +1594,5 @@ detectServer();
 })();
 
 // для отладки и автотестов
-window.__qazaq = { engine, run, setCode, runner, state };
+window.__qazaq = { engine, run, setCode, runner, state, shareUrl };
 })();
