@@ -108,7 +108,7 @@ button { font: inherit; color: inherit; }
 .hero-orn { height: 28px; margin-top: 0; }
 .hero .wrap { position: relative; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 30px; align-items: start; padding-block: 34px 56px; }
-.sun { position: absolute; z-index: -1; width: min(520px, 90vw); height: auto; right: -140px; top: -120px; color: var(--gold); animation: spin 90s linear infinite; pointer-events: none; }
+.sun { position: absolute; z-index: -1; width: min(520px, 90vw); height: auto; right: -140px; top: -270px; color: var(--gold); animation: spin 90s linear infinite; pointer-events: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .eyebrow { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 16px; font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; flex-wrap: wrap; color: var(--hero-ink-2); }
 .eyebrow .tag-ver { font-family: var(--mono); letter-spacing: 0; text-transform: none; font-weight: 700; padding: 1px 8px; border: 2px solid currentColor; border-radius: 6px; }
@@ -353,7 +353,7 @@ button { font: inherit; color: inherit; }
   .select select { max-width: 150px; }
   .kbd { display: none; }
   .pg { box-shadow: 6px 6px 0 var(--shade); }
-  .sun { right: -200px; top: -170px; }
+  .sun { right: -150px; top: -260px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -529,3 +529,5 @@ body[data-view="book"] #book { display: block; }
   .engine { padding: 4px 7px; }
   .engine-dot { width: 8px; height: 8px; }
 }
+
+.card-head .card-actions { margin-top: 14px; }
