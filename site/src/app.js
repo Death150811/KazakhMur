@@ -260,6 +260,9 @@ function staticHtml(text) {
 function codeBlock(text) {
   const pre = document.createElement('pre');
   pre.className = 'codeblock';
+  pre.tabIndex = 0;
+  pre.setAttribute('role', 'region');
+  pre.setAttribute('aria-label', 'Qazaq');
   pre.innerHTML = '<code>' + staticHtml(text.replace(/\n$/, '')) + '</code>';
   return pre;
 }
@@ -676,7 +679,7 @@ function errorCard(result, code, opts = {}) {
     const num = String(e.line);
     const src = lines[e.line - 1];
     const caret = e.column != null ? ' '.repeat(num.length) + ' | ' + ' '.repeat(Math.max(e.column - 1, 0)) + '<span class="caret">^</span>' : '';
-    html += `<pre class="err-src"><code>${esc(num + ' | ' + src)}${caret ? '\n' + caret : ''}</code></pre>`;
+    html += `<pre class="err-src" tabindex="0"><code>${esc(num + ' | ' + src)}${caret ? '\n' + caret : ''}</code></pre>`;
   }
   if (e.line != null && opts.jump) {
     html += `<button type="button" class="err-line">${esc(t('line'))} ${e.line}${e.column != null ? ', ' + esc(t('column')) + ' ' + e.column : ''}</button>`;
@@ -923,6 +926,9 @@ function renderLib() {
     el.className = 'fn';
     const sig = document.createElement('div');
     sig.className = 'fn-sig';
+    sig.tabIndex = 0;
+    sig.setAttribute('role', 'region');
+    sig.setAttribute('aria-label', b.name);
     sig.innerHTML = '<code>' + staticHtml(b.signature) + '</code>';
     const doc = document.createElement('p');
     doc.className = 'fn-doc';
