@@ -129,6 +129,8 @@ def type_name(v) -> str:
         return "мәтін"
     if isinstance(v, list):
         return "тізім"
+    if isinstance(v, tuple):
+        return "кортеж"
     if isinstance(v, dict):
         return "сөздік"
     if isinstance(v, range):
@@ -151,12 +153,15 @@ def to_repr(v, _seen: set | None = None, _depth: int = 0) -> str:
     """Представление значения «как в коде»: строки в кавычках."""
     if isinstance(v, str):
         return _quote(v)
-    if isinstance(v, (list, dict)):
+    if isinstance(v, (list, dict, tuple)):
         seen = _seen if _seen is not None else set()
         if id(v) in seen or _depth > 20:
-            return "[…]" if isinstance(v, list) else "{…}"
+            return "[…]" if isinstance(v, list) else "(…)" if isinstance(v, tuple) else "{…}"
         seen.add(id(v))
         try:
+            if isinstance(v, tuple):
+                inner = ", ".join(to_repr(x, seen, _depth + 1) for x in v)
+                return "(" + inner + ("," if len(v) == 1 else "") + ")"
             if isinstance(v, list):
                 return "[" + ", ".join(to_repr(x, seen, _depth + 1) for x in v) + "]"
             return "{" + ", ".join(f"{to_repr(k, seen, _depth + 1)}: {to_repr(x, seen, _depth + 1)}"
@@ -177,7 +182,7 @@ def to_str(v) -> str:
         return v
     if isinstance(v, (int, float)):
         return repr(v)
-    if isinstance(v, (list, dict)):
+    if isinstance(v, (list, dict, tuple)):
         return to_repr(v)
     if isinstance(v, range):
         if v.step == 1:

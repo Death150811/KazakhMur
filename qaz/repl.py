@@ -16,7 +16,7 @@ BANNER = ("Qazaq {v} — интерактивный режим. Выход: шы
 
 
 def _parse(source: str):
-    return Parser(Lexer(source).tokenize()).parse_program()
+    return Parser(Lexer(source).tokenize(), source).parse_program()
 
 
 def run_repl(stdin=None, stdout=None, interactive: bool | None = None) -> int:

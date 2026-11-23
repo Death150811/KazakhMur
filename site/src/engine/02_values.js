@@ -69,6 +69,10 @@ class QRange {
   at(i) { return this.start + this.step * i; }
 }
 
+class QTuple { constructor(items) { this.items = items; } }
+const objIds = new WeakMap();
+let objCounter = 0;
+const objId = (o) => { if (!objIds.has(o)) objIds.set(o, ++objCounter); return objIds.get(o); };
 class Unhashable extends Error {}
 class QDict {
   constructor() { this.map = new Map(); }
@@ -84,6 +88,7 @@ class QDict {
         if (k === null) return 'n';
         if (Array.isArray(k) || k instanceof QDict) throw new Unhashable();
         if (k instanceof QRange) return 'r' + k.start + ',' + k.stop + ',' + k.step;
+        if (k instanceof QTuple) return 't(' + k.items.map((x) => { const q = QDict.keyOf(x); return typeof q === 'string' ? q : 'o' + objId(q); }).join(',') + ')';
         return k;
     }
   }
@@ -110,6 +115,7 @@ function typeName(v) {
     case 'string': return 'мәтін';
   }
   if (Array.isArray(v)) return 'тізім';
+  if (v instanceof QTuple) return 'кортеж';
   if (v instanceof QDict) return 'сөздік';
   if (v instanceof QRange) return 'аралық';
   if (isFn(v)) return 'функция';
@@ -127,6 +133,7 @@ function truthy(v) {
     case 'boolean': return true;
   }
   if (Array.isArray(v)) return v.length > 0;
+  if (v instanceof QTuple) return v.items.length > 0;
   if (v instanceof QDict) return v.size > 0;
   if (v instanceof QRange) return v.length > 0n;
   return true;
@@ -182,6 +189,15 @@ function quote(s) {
 }
 function toRepr(v, seen = null, depth = 0) {
   if (typeof v === 'string') return quote(v);
+  if (v instanceof QTuple) {
+    seen = seen || new Set();
+    if (seen.has(v) || depth > 20) return '(…)';
+    seen.add(v);
+    try {
+      const inner = v.items.map((x) => toRepr(x, seen, depth + 1)).join(', ');
+      return '(' + inner + (v.items.length === 1 ? ',' : '') + ')';
+    } finally { seen.delete(v); }
+  }
   if (Array.isArray(v) || v instanceof QDict) {
     seen = seen || new Set();
     if (seen.has(v) || depth > 20) return Array.isArray(v) ? '[…]' : '{…}';
@@ -202,7 +218,7 @@ function toStr(v) {
     case 'bigint': return v.toString();
     case 'number': return floatRepr(v);
   }
-  if (Array.isArray(v) || v instanceof QDict) return toRepr(v);
+  if (Array.isArray(v) || v instanceof QDict || v instanceof QTuple) return toRepr(v);
   if (v instanceof QRange) return v.step === 1n ? `аралық(${v.start}, ${v.stop})` : `аралық(${v.start}, ${v.stop}, ${v.step})`;
   if (v instanceof QFunction) return `<функция ${v.name}>`;
   if (v instanceof Builtin || v instanceof BoundBuiltin) return `<ішкі функция ${v.name}>`;
@@ -255,6 +271,11 @@ function valuesEqual(a, b) {
     for (let i = 0; i < a.length; i++) if (!valuesEqual(a[i], b[i])) return false;
     return true;
   }
+  if (a instanceof QTuple) {
+    if (!(b instanceof QTuple) || a.items.length !== b.items.length) return false;
+    for (let i = 0; i < a.items.length; i++) if (!valuesEqual(a.items[i], b.items[i])) return false;
+    return true;
+  }
   if (a instanceof QDict) {
     if (!(b instanceof QDict) || a.size !== b.size) return false;
     for (const [k, v] of a.entries()) { const w = b.get(k); if (w === undefined || !valuesEqual(v, w)) return false; }
@@ -281,6 +302,7 @@ function compareValues(a, b) {
     return 0;
   }
   if (typeof a === 'string' && typeof b === 'string') return a < b ? -1 : a > b ? 1 : 0;
+  if (a instanceof QTuple && b instanceof QTuple) return compareValues(a.items, b.items);
   if (Array.isArray(a) && Array.isArray(b)) {
     const n = Math.min(a.length, b.length);
     for (let i = 0; i < n; i++) {

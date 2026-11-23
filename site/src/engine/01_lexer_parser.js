@@ -74,7 +74,10 @@ for (const k of LANG.keywords) {
 const T = { INT: 'INT', FLOAT: 'FLOAT', STR: 'STR', FSTR: 'FSTR', NAME: 'NAME', KW: 'KW', OP: 'OP',
             DOT: 'DOT', END: 'END', NL: 'NL', INDENT: 'INDENT', DEDENT: 'DEDENT', EOF: 'EOF' };
 
-const OPERATORS_2 = new Set(['**', '//', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=']);
+const OPERATORS_2 = new Set(['**', '//', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '|>']);
+const COMMENT_CHARS = '#;';   // комментарий начинается с «#» или «;»
+const UNICODE_OPS = { '×': '*', '÷': '/', '≤': '<=', '≥': '>=', '≠': '!=', '−': '-' };
+const SQUARE_SWAP = { '(': '[', ')': ']', '[': '(', ']': ')' };   // режим «шаршы жақша»
 const OPERATORS_1 = '+-*/%<>=()[]{},:';
 const OPENERS = { '(': ')', '[': ']', '{': '}' };
 const CLOSERS = { ')': '(', ']': '[', '}': '{' };
@@ -100,10 +103,27 @@ const MAX_INT_DIGITS = 150000;
 // ===================================================================
 // Лексер
 // ===================================================================
+// Директива в начале файла:  ;! жақша = шаршы   (или  #! brackets = square)
+function readPragmaSquare(src) {
+  for (const raw of src.split('\n').slice(0, 8)) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (COMMENT_CHARS.includes(line[0]) && line[1] === '!') {
+      const body = line.slice(2).replace(/ /g, '').toLowerCase();
+      if (body === 'жақша=шаршы' || body === 'brackets=square') return true;
+      continue;
+    }
+    if (COMMENT_CHARS.includes(line[0])) continue;
+    break;
+  }
+  return false;
+}
+
 class Lexer {
   constructor(source, opts = {}) {
     let src = source.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     if (src.startsWith('﻿')) src = src.slice(1);
+    this.square = opts.square !== undefined && opts.square !== null ? !!opts.square : (!opts.exprMode && readPragmaSquare(src));
     this.src = Array.from(src);
     this.n = this.src.length;
     this.i = 0;
@@ -154,7 +174,7 @@ class Lexer {
           (last.kind === T.END || (last.kind === T.OP && last.value === ':'));
         if (endsLogical) { this._emit(T.NL, '\n', this.line, this.col); this.atLineStart = true; }
         this._adv();
-      } else if (ch === '#') {
+      } else if (COMMENT_CHARS.includes(ch)) {
         while (this.i < n && src[this.i] !== '\n') this._adv();
       } else if (isDigit(ch)) this._number();
       else if (ch === '"' || ch === "'") this._string(ch, false);
@@ -167,8 +187,8 @@ class Lexer {
 
   _finish() {
     if (this.brackets.length) {
-      const [b, line, col] = this.brackets[this.brackets.length - 1];
-      this.error(`Скобка '${b}' не закрыта`, line, col);
+      const [, line, col, shown] = this.brackets[this.brackets.length - 1];
+      this.error(`Скобка '${shown}' не закрыта`, line, col);
     }
     if (!this.exprMode) {
       const last = this.tokens.length ? this.tokens[this.tokens.length - 1] : null;
@@ -185,7 +205,7 @@ class Lexer {
     while (j < n && (src[j] === ' ' || src[j] === '\t')) { width += src[j] === '\t' ? 4 : 1; j++; }
     if (j >= n) { this.col += j - this.i; this.i = j; return; }
     if (src[j] === '\n') { this.col += j - this.i; this.i = j; this._adv(); return; }
-    if (src[j] === '#') {
+    if (COMMENT_CHARS.includes(src[j])) {
       while (j < n && src[j] !== '\n') j++;
       this.col += j - this.i; this.i = j;
       if (this.i < n) this._adv();
@@ -325,7 +345,7 @@ class Lexer {
     if (specAt === null) { text = src.slice(start, end).join(''); spec = null; }
     else { text = src.slice(start, specAt).join(''); spec = src.slice(specAt + 1, end).join(''); }
     if (!text.trim()) this.error('Пустое выражение в {…}', openLine, openCol);
-    return { source: text, spec, line, col };
+    return { source: text, spec, line, col, square: this.square };
   }
 
   _operator() {
@@ -334,29 +354,36 @@ class Lexer {
     const ch = src[this.i];
     const two = ch + (this.i + 1 < n ? src[this.i + 1] : '');
     if (OPERATORS_2.has(two)) { this._adv(2); this._emit(T.OP, two, line, col); return; }
+    const nxt = this.i + 1 < n ? src[this.i + 1] : '';
+    const endsHere = nxt === '' || nxt === ' ' || nxt === '\t' || nxt === '\n' || COMMENT_CHARS.includes(nxt);
+    if (ch in UNICODE_OPS) { this._adv(); this._emit(T.OP, UNICODE_OPS[ch], line, col); return; }
     if (ch === '.') {
-      const nxt = this.i + 1 < n ? src[this.i + 1] : '';
-      if (nxt === '' || nxt === ' ' || nxt === '\t' || nxt === '\n' || nxt === '#') {
-        this._adv(); this._emit(T.END, '.', line, col); return;
-      }
+      if (endsHere) { this._adv(); this._emit(T.END, '.', line, col); return; }
       if (isIdentStart(nxt)) { this._adv(); this._emit(T.DOT, '.', line, col); return; }
       this.error('После точки ожидается пробел, конец строки или имя', null, null,
                  'Точка завершает инструкцию (после неё пробел или перевод строки) либо ведёт к члену объекта (список.қос).');
     }
+    if (ch === '?' || ch === '!') {
+      if (endsHere) { this._adv(); this._emit(T.END, ch, line, col); return; }
+      this.error(`Знак «${ch}» завершает выражение и должен стоять в конце инструкции`, null, null,
+                 'Примеры: x + 1?  (показать значение)  и  x > 0!  (проверить утверждение).');
+    }
     if (OPERATORS_1.includes(ch)) {
-      if (ch in OPENERS) this.brackets.push([ch, line, col]);
-      else if (ch in CLOSERS) {
-        if (!this.brackets.length || this.brackets[this.brackets.length - 1][0] !== CLOSERS[ch])
-          this.error(`Лишняя закрывающая скобка '${ch}'`);
+      const shown = ch;
+      let c2 = ch;
+      if ('()[]'.includes(ch) && this.square) c2 = SQUARE_SWAP[ch];
+      if (c2 in OPENERS) this.brackets.push([c2, line, col, shown]);
+      else if (c2 in CLOSERS) {
+        if (!this.brackets.length || this.brackets[this.brackets.length - 1][0] !== CLOSERS[c2])
+          this.error(`Лишняя закрывающая скобка '${shown}'`);
         this.brackets.pop();
       }
       this._adv();
-      this._emit(T.OP, ch, line, col);
+      this._emit(T.OP, c2, line, col);
       return;
     }
     let hint = null;
-    if (ch === ';') hint = 'В Qazaq инструкции завершаются точкой, а не точкой с запятой.';
-    else if ('“”«»'.includes(ch)) hint = 'Используйте прямые кавычки " или \'.';
+    if ('“”«»'.includes(ch)) hint = 'Используйте прямые кавычки " или \'.';
     this.error(`Неизвестный символ '${ch}' (U+${hex4(ch)})`, null, null, hint);
   }
 }
@@ -371,8 +398,9 @@ const MAX_NESTING = 60;
 const mk = (t, tok, props) => ({ t, line: tok.line, col: tok.col, ...props });
 
 class Parser {
-  constructor(tokens) {
+  constructor(tokens, source = null) {
     this.toks = tokens;
+    this.srcLines = source !== null ? source.replace(/\r\n/g, '\n').split('\n') : null;
     this.pos = 0;
     this.nesting = 0;
     this.funcDepth = 0;
@@ -412,13 +440,31 @@ class Parser {
     }
     throw new QazaqSyntaxError(`Ожидалось ${want}, найдено ${this.describe(tok)}`, line, col);
   }
-  expectEnd() {
-    if (this.match(T.END)) return;
+  expectEnd(marks = false) {
+    if (this.check(T.END)) {
+      const tok = this.advance();
+      if (tok.value !== '.' && !marks)
+        throw new QazaqSyntaxError('Здесь нужна точка: знаки «?» и «!» завершают только выражения', tok.line, tok.col,
+                                   'Пример: x + 1?  показывает значение, x > 0!  проверяет утверждение.');
+      return tok;
+    }
     const prev = this.pos > 0 ? this.toks[this.pos - 1] : this.peek();
     const tok = this.peek();
     throw new QazaqSyntaxError(
       `Инструкция должна заканчиваться точкой '.' (найдено ${this.describe(tok)})`, prev.endLine, prev.endCol,
       "Поставьте '.' в конце инструкции. Строки блоков (егер, функ, әзір …) заканчиваются двоеточием ':'.");
+  }
+  textBetween(first, last) {
+    if (this.srcLines === null) return 'выражение';
+    const parts = [];
+    for (let ln = first.line; ln <= last.endLine; ln++) {
+      if (ln - 1 >= this.srcLines.length) break;
+      const chars = Array.from(this.srcLines[ln - 1]);
+      const start = ln === first.line ? first.col - 1 : 0;
+      const end = ln === last.endLine ? last.endCol - 1 : chars.length;
+      parts.push(chars.slice(start, end).join('').trim());
+    }
+    return parts.filter((p) => p).join(' ');
   }
   enter(tok = null) {
     this.nesting++;
@@ -492,26 +538,56 @@ class Parser {
   parseSimpleExprStmt() {
     const start = this.peek();
     const expr = this.parseExpr();
+    if (this.check(T.OP, ',')) {   // а, б = б, а
+      const targets = [expr];
+      while (this.match(T.OP, ',')) targets.push(this.parseExpr());
+      for (const t of targets)
+        if (!['Name', 'Index', 'Attr'].includes(t.t)) this.error("В списке слева от '=' могут быть только имена, элементы (a[0]) и поля (a.x)", start);
+      this.expect(T.OP, '=', "'=' после списка целей");
+      const value = this.parseExprList();
+      this.expectEnd();
+      return mk('Assign', start, { target: mk('TargetList', start, { items: targets }), op: '=', value });
+    }
     const opTok = this.peek();
     if (opTok.kind === T.OP && ASSIGN_OPS.has(opTok.value)) {
       if (!['Name', 'Index', 'Attr'].includes(expr.t))
         this.error("Слева от '=' должно быть имя, элемент (a[0]) или поле (a.x)", start);
       this.advance();
-      const value = this.parseExpr();
+      const value = opTok.value === '=' ? this.parseExprList() : this.parseExpr();
       this.expectEnd();
       return mk('Assign', start, { target: expr, op: opTok.value, value });
     }
-    this.expectEnd();
-    return mk('ExprStmt', start, { expr });
+    const end = this.expectEnd(true);
+    const last = this.toks[this.pos - 2];
+    const text = end.value !== '.' ? this.textBetween(start, last) : '';
+    return mk('ExprStmt', start, { expr, mode: end.value, text });
+  }
+
+  parseExprList() {
+    const first = this.parseExpr();
+    if (!this.check(T.OP, ',')) return first;
+    const items = [first];
+    while (this.match(T.OP, ',')) {
+      if (this.check(T.END)) break;
+      items.push(this.parseExpr());
+    }
+    return { t: 'TupleLit', line: first.line, col: first.col, items };
   }
 
   parseVardecl() {
     const kw = this.advance();
     const name = this.expect(T.NAME, undefined, 'имя переменной после «айным»');
+    const names = [name];
+    while (this.match(T.OP, ',')) names.push(this.expect(T.NAME, undefined, 'имя переменной'));
     let value;
-    if (this.peek().kind === T.OP && this.peek().value === '=') { this.advance(); value = this.parseExpr(); }
-    else throw new QazaqSyntaxError(`После имени «${name.value}» ожидался знак '='`, name.endLine, name.endCol, 'Пример: айным x = 10.');
+    if (this.peek().kind === T.OP && this.peek().value === '=') { this.advance(); value = this.parseExprList(); }
+    else {
+      const last = names[names.length - 1];
+      throw new QazaqSyntaxError(`После имени «${last.value}» ожидался знак '='`, last.endLine, last.endCol,
+                                 'Пример: айным x = 10.   или   айным а, б = 1, 2.');
+    }
     this.expectEnd();
+    if (names.length > 1) return mk('VarDeclMulti', kw, { names: names.map((n) => n.value), value });
     return mk('VarDecl', kw, { name: name.value, value });
   }
 
@@ -519,7 +595,7 @@ class Parser {
     const kw = this.advance();
     if (this.funcDepth === 0) this.error('«қайтар» можно использовать только внутри функции', kw);
     let value = null;
-    if (!this.check(T.END)) value = this.parseExpr();
+    if (!this.check(T.END)) value = this.parseExprList();
     this.expectEnd();
     return mk('Return', kw, { value });
   }
@@ -663,7 +739,26 @@ class Parser {
   // ---- выражения ----
   parseExpr() {
     this.enter();
-    try { return this.parseOr(); } finally { this.nesting--; }
+    try { return this.parseTernary(); } finally { this.nesting--; }
+  }
+  parseTernary() {
+    const value = this.parsePipe();
+    if (this.check(T.KW, 'егер')) {
+      const kw = this.advance();
+      const cond = this.parsePipe();
+      this.expect(T.KW, 'әйтпесе', '«әйтпесе» в условном выражении (A егер условие әйтпесе B)');
+      const orelse = this.parseTernary();
+      return mk('Ternary', kw, { cond, then: value, orelse });
+    }
+    return value;
+  }
+  parsePipe() {
+    let left = this.parseOr();
+    while (this.check(T.OP, '|>')) {
+      const op = this.advance();
+      left = mk('Pipe', op, { left, right: this.parseOr() });
+    }
+    return left;
   }
   parseOr() {
     let left = this.parseAnd();
@@ -795,14 +890,30 @@ class Parser {
     }
     if (t.kind === T.OP && t.value === '(') {
       this.advance();
-      const expr = this.parseExpr();
+      if (this.match(T.OP, ')')) return mk('TupleLit', t, { items: [] });
+      const first = this.parseExpr();
+      if (this.check(T.OP, ',')) {
+        const items = [first];
+        while (this.match(T.OP, ',')) { if (this.check(T.OP, ')')) break; items.push(this.parseExpr()); }
+        this.expect(T.OP, ')', "')' в конце кортежа");
+        return mk('TupleLit', t, { items });
+      }
       this.expect(T.OP, ')', "')'");
-      return expr;
+      return first;
     }
     if (t.kind === T.OP && t.value === '[') {
       this.advance();
       const items = [];
-      while (!this.check(T.OP, ']')) { items.push(this.parseExpr()); if (!this.match(T.OP, ',')) break; }
+      if (!this.check(T.OP, ']')) {
+        const first = this.parseExpr();
+        if (this.check(T.KW, 'әрбір')) {
+          const clauses = this.parseCompClauses();
+          this.expect(T.OP, ']', "']' в конце генератора списка");
+          return mk('ListComp', t, { elt: first, clauses });
+        }
+        items.push(first);
+        while (this.match(T.OP, ',')) { if (this.check(T.OP, ']')) break; items.push(this.parseExpr()); }
+      }
       this.expect(T.OP, ']', "']' в конце списка");
       return mk('ListLit', t, { items });
     }
@@ -812,7 +923,13 @@ class Parser {
       while (!this.check(T.OP, '}')) {
         const key = this.parseExpr();
         this.expect(T.OP, ':', "':' между ключом и значением");
-        pairs.push([key, this.parseExpr()]);
+        const value = this.parseExpr();
+        if (!pairs.length && this.check(T.KW, 'әрбір')) {
+          const clauses = this.parseCompClauses();
+          this.expect(T.OP, '}', "'}' в конце генератора словаря");
+          return mk('DictComp', t, { key, value, clauses });
+        }
+        pairs.push([key, value]);
         if (!this.match(T.OP, ',')) break;
       }
       this.expect(T.OP, '}', "'}' в конце словаря");
@@ -821,11 +938,23 @@ class Parser {
     if (t.kind === T.END) this.error("Ожидалось выражение, найдена точка '.'", null, 'Возможно, лишняя точка или пропущено значение.');
     this.error(`Ожидалось выражение, найдено ${this.describe(t)}`);
   }
+  parseCompClauses() {
+    const clauses = [];
+    while (this.check(T.KW, 'әрбір') || this.check(T.KW, 'егер')) {
+      if (this.match(T.KW, 'әрбір')) {
+        const targets = [this.expect(T.NAME, undefined, 'имя переменной').value];
+        while (this.match(T.OP, ',')) targets.push(this.expect(T.NAME, undefined, 'имя переменной').value);
+        this.expect(T.KW, 'ішінде', '«ішінде» (пример: [x * x әрбір x ішінде сандар])');
+        clauses.push(['for', targets, this.parsePipe()]);
+      } else { this.advance(); clauses.push(['if', this.parsePipe()]); }
+    }
+    return clauses;
+  }
   buildFstring(tok) {
     const parts = [];
     for (const part of tok.value) {
       if (typeof part === 'string') { parts.push(part); continue; }
-      const toks = new Lexer(part.source, { line: part.line, col: part.col, exprMode: true }).tokenize();
+      const toks = new Lexer(part.source, { line: part.line, col: part.col, exprMode: true, square: part.square }).tokenize();
       const sub = new Parser(toks);
       const expr = sub.parseExpr();
       if (!sub.check(T.EOF)) sub.error(`Лишний текст в выражении {…}: ${sub.describe(sub.peek())}`);
@@ -835,4 +964,4 @@ class Parser {
   }
 }
 
-function parse(source) { return new Parser(new Lexer(source).tokenize()).parseProgram(); }
+function parse(source, square = null) { return new Parser(new Lexer(source, { square }).tokenize(), source).parseProgram(); }

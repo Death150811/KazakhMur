@@ -63,3 +63,4 @@ class FPart:
     spec: str | None
     line: int
     col: int
+    square: bool = False  # режим «шаршы жақша» (квадратные скобки для вызовов)

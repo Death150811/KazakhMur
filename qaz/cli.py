@@ -81,7 +81,7 @@ def cmd_check(args) -> int:
     if source is None:
         return 2
     try:
-        Parser(Lexer(source).tokenize()).parse_program()
+        Parser(Lexer(source).tokenize(), source).parse_program()
     except QazaqError as exc:
         print(format_error(exc, source, args.file), file=sys.stderr)
         return 1

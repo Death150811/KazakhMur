@@ -170,10 +170,12 @@ def test_unclosed_and_extra_brackets():
         tokenize("жаз(1)).")
 
 
-def test_semicolon_hint():
-    with pytest.raises(LexicalError) as e:
-        tokenize("айным x = 1;")
-    assert "точк" in e.value.hint
+def test_semicolon_starts_a_comment():
+    # «;» — комментарий (как «#»), поэтому забытая точка перед ним остаётся ошибкой разбора, а не лексики
+    ks = kinds("айным x = 1. ; комментарий")
+    assert ks == ["KW", "NAME", "OP", "INT", "END", "NL", "EOF"]
+    assert kinds("; только комментарий\nжаз(1).")[:2] == ["NAME", "OP"]
+    assert kinds("жаз(\"а;б\").")[:3] == ["NAME", "OP", "STR"]
 
 
 def test_positions():
@@ -195,3 +197,22 @@ def test_only_ascii_digits_form_numbers():
     for bad in ("жаз(5²).", "жаз(²).", "жаз(٣).", "x = 1.٣."):
         with pytest.raises(LexicalError):
             tokenize(bad)
+
+
+def test_sentence_endings_and_unicode_operators():
+    assert kinds("x + 1?") == ["NAME", "OP", "INT", "END", "NL", "EOF"]
+    toks = tokenize("x > 0!")
+    assert [t.value for t in toks if t.kind == "END"] == ["!"]
+    assert [t.value for t in tokenize("a ≥ 1 × 2 ÷ 3 ≤ 4 ≠ 5 − 6") if t.kind == "OP"] == [">=", "*", "/", "<=", "!=", "-"]
+    assert [t.value for t in tokenize("a != b!") if t.kind in ("OP", "END")] == ["!=", "!"]
+    with pytest.raises(LexicalError):
+        tokenize("x ?y")
+
+
+def test_square_bracket_pragma_swaps_brackets():
+    toks = tokenize(";! жақша = шаршы\nжаз[1].")
+    assert [t.value for t in toks if t.kind == "OP"] == ["(", ")"]
+    assert [t.value for t in tokenize("жаз[1].", square=True) if t.kind == "OP"] == ["(", ")"]
+    assert [t.value for t in tokenize("жаз(1).") if t.kind == "OP"] == ["(", ")"]
+    # директива действует только в начале файла
+    assert [t.value for t in tokenize("жаз(1).\n;! жақша = шаршы\n") if t.kind == "OP"] == ["(", ")"]

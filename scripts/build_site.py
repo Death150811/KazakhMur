@@ -70,6 +70,12 @@ def build() -> dict[str, Path]:
     (DIST / "fragment.html").write_text(fragment, encoding="utf-8")
     full = ("<!doctype html>\n<html lang=\"ru\">\n<head>\n<meta charset=\"utf-8\">\n"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
+            "<meta name=\"description\" content=\"Qazaq — язык программирования на казахском. Онлайн-редактор запускает код прямо в браузере: без установки и без сервера.\">\n"
+            "<meta name=\"theme-color\" content=\"#00afca\">\n"
+            "<meta property=\"og:type\" content=\"website\">\n"
+            "<meta property=\"og:title\" content=\"Qazaq — программирование на казахском\">\n"
+            "<meta property=\"og:description\" content=\"Қарапайымдылық сыртында. Қуат ішінде. Пишите код по-казахски и запускайте в браузере.\">\n"
+            "<meta name=\"color-scheme\" content=\"light dark\">\n"
             "</head>\n<body>\n" + fragment + "\n</body>\n</html>\n")
     (DIST / "index.html").write_text(full, encoding="utf-8")
     return {"index": DIST / "index.html", "fragment": DIST / "fragment.html", "engine": DIST / "engine.js"}

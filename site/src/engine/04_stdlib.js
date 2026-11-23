@@ -104,12 +104,13 @@ function def(name, minArgs, maxArgs, fn) {
                                  meta.kw && meta.kw.length ? meta.kw : null));
 }
 
-const METHODS = { str: {}, list: {}, dict: {} };
+const METHODS = { str: {}, list: {}, dict: {}, tuple: {} };
 function method(kind, name, minArgs, maxArgs, fn) { METHODS[kind][name] = { fn, minArgs, maxArgs }; }
 function methodTable(obj) {
   if (typeof obj === 'string') return METHODS.str;
   if (Array.isArray(obj)) return METHODS.list;
   if (obj instanceof QDict) return METHODS.dict;
+  if (obj instanceof QTuple) return METHODS.tuple;
   return null;
 }
 
@@ -130,6 +131,7 @@ function expectStr(fname, v) {
 const MAX_LIST = 20000000;
 function asList(fname, v) {
   if (Array.isArray(v)) return v.slice();
+  if (v instanceof QTuple) return v.items.slice();
   if (typeof v === 'string') return strChars(v);
   if (v instanceof QRange) {
     if (v.length > BigInt(MAX_LIST)) throw rtError(`«${fname}»: коллекция слишком велика`);
@@ -165,6 +167,7 @@ def('ұзындық', 1, 1, (it, x) => {
   if (typeof x === 'string') return BigInt(strLen(x));
   if (Array.isArray(x)) return BigInt(x.length);
   if (x instanceof QDict) return BigInt(x.size);
+  if (x instanceof QTuple) return BigInt(x.items.length);
   if (x instanceof QRange) return x.length;
   throw rtError(`«ұзындық»: у значения типа ${typeName(x)} нет длины`, 'Длину имеют мәтін, тізім, сөздік и аралық.');
 });
@@ -201,14 +204,16 @@ def('нақты', 1, 1, (it, x) => {
 def('мәтін', 0, 1, (it, ...args) => (args.length ? toStr(args[0]) : ''));
 def('логика', 1, 1, (it, x) => truthy(x));
 def('тізім', 0, 1, (it, ...args) => (args.length ? asList('тізім', args[0]) : []));
+def('кортеж', 0, 1, (it, ...args) => new QTuple(args.length ? asList('кортеж', args[0]) : []));
 def('сөздік', 0, 1, (it, ...args) => {
   if (!args.length) return new QDict();
   const src = args[0];
   if (src instanceof QDict) return src.copy();
   const out = new QDict();
   for (const pair of asList('сөздік', src)) {
-    if (!Array.isArray(pair) || pair.length !== 2) throw rtError('«сөздік»: ожидался список пар [[ключ, значение], …]');
-    try { out.set(pair[0], pair[1]); }
+    const pr = pair instanceof QTuple ? pair.items : pair;
+    if (!Array.isArray(pr) || pr.length !== 2) throw rtError('«сөздік»: ожидался список пар [[ключ, значение], …]');
+    try { out.set(pr[0], pr[1]); }
     catch (e) { if (e instanceof Unhashable) throw rtError('«сөздік»: ключом не может быть изменяемое значение (тізім/сөздік)'); throw e; }
   }
   return out;
@@ -282,7 +287,7 @@ def('сүз', 2, 2, (it, fn, items) => asList('сүз', items).filter((x) => tru
 def('бейнеле', 2, 2, (it, fn, items) => asList('бейнеле', items).map((x) => it.callValue(fn, [x])));
 def('кері', 1, 1, (it, x) => {
   if (typeof x === 'string') return strChars(x).reverse().join('');
-  if (Array.isArray(x) || x instanceof QRange) return asList('кері', x).reverse();
+  if (Array.isArray(x) || x instanceof QRange || x instanceof QTuple) return asList('кері', x).reverse();
   throw rtError(`«кері»: нельзя перевернуть значение типа ${typeName(x)}`);
 });
 
@@ -320,6 +325,10 @@ method('str', 'сана', 1, 1, (it, s, sub) => {
   if (sub === '') throw rtError('«сана»: подстрока не может быть пустой');
   return BigInt(s.split(sub).length - 1);
 });
+
+// ---------------- методы кортеж ----------------
+method('tuple', 'тап', 1, 1, (it, t, x) => BigInt(t.items.findIndex((y) => valuesEqual(y, x))));
+method('tuple', 'сана', 1, 1, (it, t, x) => BigInt(t.items.filter((y) => valuesEqual(y, x)).length));
 
 // ---------------- методы тізім ----------------
 method('list', 'қос', 1, 1, (it, l, x) => { l.push(x); return null; });

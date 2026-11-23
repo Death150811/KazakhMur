@@ -76,6 +76,11 @@ class Interpreter {
     try {
       switch (node.t) {
         case 'VarDecl': env.declare(node.name, this.evaluate(node.value, env)); return;
+        case 'VarDeclMulti': {
+          const values = this.unpack(this.evaluate(node.value, env), node.names.length);
+          node.names.forEach((n, i) => env.declare(n, values[i]));
+          return;
+        }
         case 'Assign': this.xAssign(node, env); return;
         case 'ExprStmt': this.xExpr(node, env); return;
         case 'If': this.xIf(node, env); return;
@@ -106,8 +111,39 @@ class Interpreter {
     throw rtError(`Переменная «${target.name}» не объявлена`, hint);
   }
 
+  unpack(value, count) {
+    let items;
+    if (Array.isArray(value)) items = value.slice();
+    else if (value instanceof QTuple) items = value.items.slice();
+    else if (typeof value === 'string') items = strChars(value);
+    else if (value instanceof QRange) {
+      if (value.length > BigInt(count) + 1n) items = new Array(Number(value.length > 1000000n ? 1000000n : value.length)).fill(0);
+      else items = asList('unpack', value);
+    }
+    else throw rtError(`Нельзя разложить значение типа ${typeName(value)}`, 'Раскладывать можно тізім, кортеж, мәтін и аралық.');
+    if (items.length !== count)
+      throw rtError(`Нельзя разложить значение ${toRepr(value)}: ожидалось элементов ${count}, найдено ${value instanceof QRange ? value.length : items.length}`);
+    return items;
+  }
+
+  store(target, value, env) {
+    if (target.t === 'Name') { if (!env.assign(target.name, value)) this.undeclared(target); }
+    else if (target.t === 'Index') this.setIndex(this.evaluate(target.obj, env), this.evaluate(target.index, env), value);
+    else {
+      const obj = this.evaluate(target.obj, env);
+      if (!(obj instanceof QInstance))
+        throw rtError(`Поля можно менять только у объектов классов, а не у значения типа ${typeName(obj)}`);
+      obj.fields.set(target.name, value);
+    }
+  }
+
   xAssign(node, env) {
     const target = node.target;
+    if (target.t === 'TargetList') {
+      const values = this.unpack(this.evaluate(node.value, env), target.items.length);
+      target.items.forEach((t, i) => this.store(t, values[i], env));
+      return;
+    }
     if (target.t === 'Name') {
       let value = this.evaluate(node.value, env);
       if (node.op !== '=') {
@@ -134,7 +170,63 @@ class Interpreter {
 
   xExpr(node, env) {
     const value = this.evaluate(node.expr, env);
-    if (this.echo && env === this.globals && value !== null) this.write(toRepr(value) + '\n');
+    if (node.mode === '?') this.write(`${node.text} → ${toRepr(value)}\n`);
+    else if (node.mode === '!') {
+      if (!truthy(value)) throw rtError(`Утверждение не выполнено: ${node.text}`, `Значение выражения: ${toRepr(value)}`);
+    } else if (this.echo && env === this.globals && value !== null) this.write(toRepr(value) + '\n');
+  }
+
+  ePipe(node, env) {
+    const left = this.evaluate(node.left, env);
+    const right = node.right;
+    if (right.t === 'Call') {
+      const fn = this.evaluate(right.func, env);
+      const args = [...right.args.map((a) => this.evaluate(a, env)), left];
+      let kwargs = null;
+      if (right.kwargs.length) { kwargs = new Map(); for (const [n, e] of right.kwargs) kwargs.set(n, this.evaluate(e, env)); }
+      return this.callValue(fn, args, node.line, kwargs);
+    }
+    return this.callValue(this.evaluate(right, env), [left], node.line);
+  }
+
+  runComp(clauses, idx, env, emit) {
+    if (idx === clauses.length) { emit(); return; }
+    const clause = clauses[idx];
+    if (clause[0] === 'if') {
+      if (truthy(this.evaluate(clause[1], env))) this.runComp(clauses, idx + 1, env, emit);
+      return;
+    }
+    const [, targets, iterNode] = clause;
+    let iterable = this.evaluate(iterNode, env);
+    if (iterable instanceof QDict) iterable = iterable.keys();
+    else if (iterable instanceof QTuple) iterable = iterable.items;
+    else if (!(Array.isArray(iterable) || typeof iterable === 'string' || iterable instanceof QRange))
+      throw rtError(`Нельзя перебирать значение типа ${typeName(iterable)}`, 'Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.');
+    const each = (item) => {
+      if (targets.length === 1) env.vars.set(targets[0], item);
+      else this.unpack(item, targets.length).forEach((v, i) => env.vars.set(targets[i], v));
+      this.tick();
+      this.runComp(clauses, idx + 1, env, emit);
+    };
+    if (Array.isArray(iterable)) { for (let i = 0; i < iterable.length; i++) each(iterable[i]); }
+    else if (typeof iterable === 'string') { for (const ch of iterable) each(ch); }
+    else { const len = iterable.length; for (let i = 0n; i < len; i++) each(iterable.at(i)); }
+  }
+
+  eListComp(node, env) {
+    const local = new Env(env), out = [];
+    this.runComp(node.clauses, 0, local, () => out.push(this.evaluate(node.elt, local)));
+    return out;
+  }
+
+  eDictComp(node, env) {
+    const local = new Env(env), out = new QDict();
+    this.runComp(node.clauses, 0, local, () => {
+      const key = this.evaluate(node.key, local);
+      try { out.set(key, this.evaluate(node.value, local)); }
+      catch (e) { if (e instanceof Unhashable) throw rtError(`Ключом словаря не может быть значение типа ${typeName(key)}`); throw e; }
+    });
+    return out;
   }
 
   xIf(node, env) {
@@ -155,15 +247,15 @@ class Interpreter {
   xFor(node, env) {
     let iterable = this.evaluate(node.iterable, env);
     if (iterable instanceof QDict) iterable = iterable.keys();
+    else if (iterable instanceof QTuple) iterable = iterable.items;
     else if (!(Array.isArray(iterable) || typeof iterable === 'string' || iterable instanceof QRange))
-      throw rtError(`Нельзя перебирать значение типа ${typeName(iterable)}`, 'Перебирать можно тізім, мәтін, сөздік и аралық.');
+      throw rtError(`Нельзя перебирать значение типа ${typeName(iterable)}`, 'Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.');
     const targets = node.targets;
     const step = (item) => {
       if (targets.length === 1) env.vars.set(targets[0], item);
       else {
-        if (!Array.isArray(item) || item.length !== targets.length)
-          throw rtError(`Нельзя разложить значение ${toRepr(item)} на ${targets.length} переменные`);
-        for (let k = 0; k < targets.length; k++) env.vars.set(targets[k], item[k]);
+        const vals = this.unpack(item, targets.length);
+        for (let k = 0; k < targets.length; k++) env.vars.set(targets[k], vals[k]);
       }
       try { this.runBlock(node.body, env); }
       catch (e) { if (e instanceof BreakSignal) return true; if (!(e instanceof ContinueSignal)) throw e; }
@@ -229,6 +321,11 @@ class Interpreter {
         case 'DictLit': return this.eDict(node, env);
         case 'FString': return this.eFstring(node, env);
         case 'Slice': return this.eSlice(node, env);
+        case 'TupleLit': return new QTuple(node.items.map((it) => this.evaluate(it, env)));
+        case 'ListComp': return this.eListComp(node, env);
+        case 'DictComp': return this.eDictComp(node, env);
+        case 'Ternary': return truthy(this.evaluate(node.cond, env)) ? this.evaluate(node.then, env) : this.evaluate(node.orelse, env);
+        case 'Pipe': return this.ePipe(node, env);
         case 'Lambda': return new QFunction('<лямбда>', node.params, [{ t: 'Return', line: node.body.line, col: node.body.col, value: node.body }], env);
         default: throw new Error('unknown expression ' + node.t);
       }
@@ -317,23 +414,27 @@ class Interpreter {
         if (aNum && bNum) return numAdd(a, b);
         if (typeof a === 'string' && typeof b === 'string') return a + b;
         if (Array.isArray(a) && Array.isArray(b)) return a.concat(b);
+        if (a instanceof QTuple && b instanceof QTuple) return new QTuple(a.items.concat(b.items));
         break;
       case '-':
         if (aNum && bNum) return numSub(a, b);
         break;
       case '*': {
         if (aNum && bNum) return numMul(a, b);
-        const [seq, n] = (typeof a === 'string' || Array.isArray(a)) ? [a, b] : [b, a];
-        if ((typeof seq === 'string' || Array.isArray(seq)) && typeof n === 'bigint') {
+        const isSeq = (v) => typeof v === 'string' || Array.isArray(v) || v instanceof QTuple;
+        const [seq0, n] = isSeq(a) ? [a, b] : [b, a];
+        if (isSeq(seq0) && typeof n === 'bigint') {
+          const isTuple = seq0 instanceof QTuple;
+          const seq = isTuple ? seq0.items : seq0;
           const k = n;
           const len = typeof seq === 'string' ? strLen(seq) : seq.length;
           if (BigInt(len) * (k > 0n ? k : 0n) > BigInt(MAX_SEQ_RESULT)) throw rtError('Результат повторения слишком велик');
           const times = Number(k > 0n ? k : 0n);
-          if (len === 0 || times === 0) return typeof seq === 'string' ? '' : [];
+          if (len === 0 || times === 0) return typeof seq === 'string' ? '' : isTuple ? new QTuple([]) : [];
           if (typeof seq === 'string') return seq.repeat(times);
           const out = [];
           for (let i = 0; i < times; i++) for (let j = 0; j < seq.length; j++) out.push(seq[j]);
-          return out;
+          return isTuple ? new QTuple(out) : out;
         }
         break;
       }
@@ -359,6 +460,7 @@ class Interpreter {
           if (typeof a !== 'string') throw rtError(`В строке можно искать только строку, а не ${typeName(a)}`);
           found = b.includes(a);
         } else if (Array.isArray(b)) found = b.some((x) => valuesEqual(x, a));
+        else if (b instanceof QTuple) found = b.items.some((x) => valuesEqual(x, a));
         else if (b instanceof QDict) {
           try { found = b.has(a); }
           catch (e) {
@@ -367,7 +469,7 @@ class Interpreter {
           }
         } else if (b instanceof QRange) found = rangeHas(b, a);
         else throw rtError(`Оператор «ішінде» не применим к типу ${typeName(b)}`,
-                           'Правая часть должна быть мәтін, тізім, сөздік или аралық.');
+                           'Правая часть должна быть мәтін, тізім, кортеж, сөздік или аралық.');
         return found === (op === 'ішінде');
       }
     }
@@ -389,6 +491,7 @@ class Interpreter {
 
   // ---- индексы, срезы, поля ----
   getIndex(obj, idx) {
+    if (obj instanceof QTuple) return this.getIndex(obj.items, idx);
     if (Array.isArray(obj) || typeof obj === 'string' || obj instanceof QRange) {
       if (!isInt(idx) || typeof idx === 'boolean') throw rtError(`Индекс должен быть бүтін (целым), а не ${typeName(idx)}`);
       let i = big(idx);
@@ -431,6 +534,15 @@ class Interpreter {
       const v = sub === null ? null : this.evaluate(sub, env);
       if (v !== null && (!isInt(v) || typeof v === 'boolean')) throw rtError(`Границы среза должны быть бүтін, а не ${typeName(v)}`);
       parts.push(v === null ? null : big(v));
+    }
+    if (obj instanceof QTuple) {
+      if (parts[2] === 0n) throw rtError('Шаг среза не может быть нулём');
+      const [lo0, hi0, st0] = parts;
+      const [s0, e0, step0] = sliceIndices(BigInt(obj.items.length), lo0, hi0, st0);
+      const res = [];
+      if (step0 > 0n) for (let i = s0; i < e0; i += step0) res.push(obj.items[Number(i)]);
+      else for (let i = s0; i > e0; i += step0) res.push(obj.items[Number(i)]);
+      return new QTuple(res);
     }
     if (!(Array.isArray(obj) || typeof obj === 'string' || obj instanceof QRange))
       throw rtError(`Значение типа ${typeName(obj)} не поддерживает срезы`);

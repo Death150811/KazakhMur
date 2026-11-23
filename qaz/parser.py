@@ -13,8 +13,9 @@ ASSIGN_OPS = {"=", "+=", "-=", "*=", "/="}
 
 
 class Parser:
-    def __init__(self, tokens: list[Token]):
+    def __init__(self, tokens: list[Token], source: str | None = None):
         self.toks = tokens
+        self.src_lines = source.replace("\r\n", "\n").split("\n") if source is not None else None
         self.pos = 0
         self.nesting = 0      # текущая вложенность выражений и блоков
         self.func_depth = 0   # внутри скольких функций мы находимся
@@ -72,10 +73,17 @@ class Parser:
             line, col = prev.end_line, prev.end_col  # ошибка «в конце предыдущей строки»
         raise QazaqSyntaxError(f"Ожидалось {want}, найдено {self.describe(tok)}", line, col)
 
-    def expect_end(self) -> None:
-        """Каждая простая инструкция заканчивается точкой."""
-        if self.match(END):
-            return
+    def expect_end(self, marks: bool = False) -> Token:
+        """Каждая простая инструкция заканчивается точкой. Выражение может заканчиваться
+        также «?» (показать значение) или «!» (утверждение)."""
+        if self.check(END):
+            tok = self.advance()
+            if tok.value != "." and not marks:
+                raise QazaqSyntaxError(
+                    f"Здесь нужна точка: знаки «?» и «!» завершают только выражения",
+                    tok.line, tok.col,
+                    hint="Пример: x + 1?  показывает значение, x > 0!  проверяет утверждение.")
+            return tok
         prev = self.toks[self.pos - 1] if self.pos > 0 else self.peek()
         tok = self.peek()
         raise QazaqSyntaxError(
@@ -83,6 +91,20 @@ class Parser:
             prev.end_line, prev.end_col,
             hint="Поставьте '.' в конце инструкции. Строки блоков (егер, функ, әзір …) "
                  "заканчиваются двоеточием ':'.")
+
+    def text_between(self, first: Token, last: Token) -> str:
+        """Исходный текст от начала first до конца last (для сообщений «?» и «!»)."""
+        if self.src_lines is None:
+            return "выражение"
+        parts = []
+        for ln in range(first.line, last.end_line + 1):
+            if ln - 1 >= len(self.src_lines):
+                break
+            text = self.src_lines[ln - 1]
+            start = first.col - 1 if ln == first.line else 0
+            end = last.end_col - 1 if ln == last.end_line else len(text)
+            parts.append(text[start:end].strip())
+        return " ".join(p for p in parts if p)
 
     def enter(self, tok: Token | None = None) -> None:
         self.nesting += 1
@@ -160,29 +182,59 @@ class Parser:
     def parse_simple_expr_stmt(self):
         start = self.peek()
         expr = self.parse_expr()
+        if self.check(OP, ","):   # а, б = б, а  — присваивание нескольким целям
+            targets = [expr]
+            while self.match(OP, ","):
+                targets.append(self.parse_expr())
+            for t in targets:
+                if not isinstance(t, (A.Name, A.Index, A.Attr)):
+                    self.error("В списке слева от '=' могут быть только имена, элементы (a[0]) и поля (a.x)", start)
+            self.expect(OP, "=", what="'=' после списка целей")
+            value = self.parse_expr_list()
+            self.expect_end()
+            return A.Assign(A.TargetList(targets, line=start.line, col=start.col), "=", value,
+                            line=start.line, col=start.col)
         op_tok = self.peek()
         if op_tok.kind == OP and op_tok.value in ASSIGN_OPS:
             if not isinstance(expr, (A.Name, A.Index, A.Attr)):
                 self.error("Слева от '=' должно быть имя, элемент (a[0]) или поле (a.x)", start)
             self.advance()
-            value = self.parse_expr()
+            value = self.parse_expr_list() if op_tok.value == "=" else self.parse_expr()
             self.expect_end()
             return A.Assign(expr, op_tok.value, value, line=start.line, col=start.col)
-        self.expect_end()
-        return A.ExprStmt(expr, line=start.line, col=start.col)
+        end = self.expect_end(marks=True)
+        last = self.toks[self.pos - 2]
+        text = self.text_between(start, last) if end.value != "." else ""
+        return A.ExprStmt(expr, end.value, text, line=start.line, col=start.col)
+
+    def parse_expr_list(self):
+        """expr или expr, expr, … (без скобок — это кортеж)"""
+        first = self.parse_expr()
+        if not self.check(OP, ","):
+            return first
+        items = [first]
+        while self.match(OP, ","):
+            if self.check(END):   # хвостовая запятая: айным t = 1,.
+                break
+            items.append(self.parse_expr())
+        return A.TupleLit(items, line=first.line, col=first.col)
 
     def parse_vardecl(self):
         kw = self.advance()
         name = self.expect(NAME, what="имя переменной после «айным»")
+        names = [name]
+        while self.match(OP, ","):
+            names.append(self.expect(NAME, what="имя переменной"))
         if self.peek().kind == OP and self.peek().value == "=":
             self.advance()
-            value = self.parse_expr()
+            value = self.parse_expr_list()
         else:
-            tok = self.peek()
-            raise QazaqSyntaxError(f"После имени «{name.value}» ожидался знак '='",
-                                   name.end_line, name.end_col,
-                                   hint="Пример: айным x = 10.")
+            raise QazaqSyntaxError(f"После имени «{names[-1].value}» ожидался знак '='",
+                                   names[-1].end_line, names[-1].end_col,
+                                   hint="Пример: айным x = 10.   или   айным а, б = 1, 2.")
         self.expect_end()
+        if len(names) > 1:
+            return A.VarDeclMulti([n.value for n in names], value, line=kw.line, col=kw.col)
         return A.VarDecl(name.value, value, line=kw.line, col=kw.col)
 
     def parse_return(self):
@@ -191,7 +243,7 @@ class Parser:
             self.error("«қайтар» можно использовать только внутри функции", kw)
         value = None
         if not self.check(END):
-            value = self.parse_expr()
+            value = self.parse_expr_list()
         self.expect_end()
         return A.Return(value, line=kw.line, col=kw.col)
 
@@ -355,9 +407,29 @@ class Parser:
     def parse_expr(self):
         self.enter()
         try:
-            return self.parse_or()
+            return self.parse_ternary()
         finally:
             self.nesting -= 1
+
+    def parse_ternary(self):
+        """A егер условие әйтпесе B"""
+        value = self.parse_pipe()
+        if self.check(KW, "егер"):
+            kw = self.advance()
+            cond = self.parse_pipe()
+            self.expect(KW, "әйтпесе", what="«әйтпесе» в условном выражении (A егер условие әйтпесе B)")
+            other = self.parse_ternary()
+            return A.Ternary(cond, value, other, line=kw.line, col=kw.col)
+        return value
+
+    def parse_pipe(self):
+        """a |> f |> g(2): значение слева становится последним аргументом"""
+        left = self.parse_or()
+        while self.check(OP, "|>"):
+            op = self.advance()
+            right = self.parse_or()
+            left = A.Pipe(left, right, line=op.line, col=op.col)
+        return left
 
     def parse_or(self):
         left = self.parse_and()
@@ -519,16 +591,33 @@ class Parser:
                        hint="Ключевые слова зарезервированы; выберите другое имя.")
         if t.kind == OP and t.value == "(":
             self.advance()
-            expr = self.parse_expr()
+            if self.match(OP, ")"):
+                return A.TupleLit([], line=t.line, col=t.col)
+            first = self.parse_expr()
+            if self.check(OP, ","):
+                items = [first]
+                while self.match(OP, ","):
+                    if self.check(OP, ")"):
+                        break
+                    items.append(self.parse_expr())
+                self.expect(OP, ")", what="')' в конце кортежа")
+                return A.TupleLit(items, line=t.line, col=t.col)
             self.expect(OP, ")", what="')'")
-            return expr
+            return first
         if t.kind == OP and t.value == "[":
             self.advance()
             items = []
-            while not self.check(OP, "]"):
-                items.append(self.parse_expr())
-                if not self.match(OP, ","):
-                    break
+            if not self.check(OP, "]"):
+                first = self.parse_expr()
+                if self.check(KW, "әрбір"):
+                    clauses = self.parse_comp_clauses()
+                    self.expect(OP, "]", what="']' в конце генератора списка")
+                    return A.ListComp(first, clauses, line=t.line, col=t.col)
+                items.append(first)
+                while self.match(OP, ","):
+                    if self.check(OP, "]"):
+                        break
+                    items.append(self.parse_expr())
             self.expect(OP, "]", what="']' в конце списка")
             return A.ListLit(items, line=t.line, col=t.col)
         if t.kind == OP and t.value == "{":
@@ -537,7 +626,12 @@ class Parser:
             while not self.check(OP, "}"):
                 key = self.parse_expr()
                 self.expect(OP, ":", what="':' между ключом и значением")
-                pairs.append((key, self.parse_expr()))
+                value = self.parse_expr()
+                if not pairs and self.check(KW, "әрбір"):
+                    clauses = self.parse_comp_clauses()
+                    self.expect(OP, "}", what="'}' в конце генератора словаря")
+                    return A.DictComp(key, value, clauses, line=t.line, col=t.col)
+                pairs.append((key, value))
                 if not self.match(OP, ","):
                     break
             self.expect(OP, "}", what="'}' в конце словаря")
@@ -547,6 +641,21 @@ class Parser:
                        hint="Возможно, лишняя точка или пропущено значение.")
         self.error(f"Ожидалось выражение, найдено {self.describe(t)}")
 
+    def parse_comp_clauses(self) -> list:
+        """әрбір x ішінде коллекция [егер условие] ... — части генератора списка/словаря"""
+        clauses: list = []
+        while self.check(KW, "әрбір") or self.check(KW, "егер"):
+            if self.match(KW, "әрбір"):
+                targets = [self.expect(NAME, what="имя переменной").value]
+                while self.match(OP, ","):
+                    targets.append(self.expect(NAME, what="имя переменной").value)
+                self.expect(KW, "ішінде", what="«ішінде» (пример: [x * x әрбір x ішінде сандар])")
+                clauses.append(("for", targets, self.parse_pipe()))
+            else:
+                self.advance()
+                clauses.append(("if", self.parse_pipe()))
+        return clauses
+
     def build_fstring(self, tok: Token):
         parts: list = []
         for part in tok.value:
@@ -554,7 +663,8 @@ class Parser:
                 parts.append(part)
             else:
                 assert isinstance(part, FPart)
-                toks = Lexer(part.source, line=part.line, col=part.col, expr_mode=True).tokenize()
+                toks = Lexer(part.source, line=part.line, col=part.col, expr_mode=True,
+                             square=part.square).tokenize()
                 sub = Parser(toks)
                 expr = sub.parse_expr()
                 if not sub.check(EOF):
@@ -563,5 +673,5 @@ class Parser:
         return A.FString(parts, line=tok.line, col=tok.col)
 
 
-def parse(source: str) -> A.Program:
-    return Parser(Lexer(source).tokenize()).parse_program()
+def parse(source: str, square: bool | None = None) -> A.Program:
+    return Parser(Lexer(source, square=square).tokenize(), source).parse_program()

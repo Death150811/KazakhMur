@@ -28,7 +28,7 @@ def _input(interp, prompt=""):
 # ---------------- типы и преобразования ----------------
 @builtin("ұзындық", 1, 1, sig="ұзындық(x)", doc="Длина мәтін, тізім, сөздік или аралық.")
 def _len(interp, x):
-    if isinstance(x, (str, list, dict, range)):
+    if isinstance(x, (str, list, dict, range, tuple)):
         return len(x)
     rt_error(f"«ұзындық»: у значения типа {type_name(x)} нет длины",
              hint="Длину имеют мәтін, тізім, сөздік и аралық.")
@@ -86,6 +86,11 @@ def _list(interp, *args):
     return as_list("тізім", args[0]) if args else []
 
 
+@builtin("кортеж", 0, 1, sig="кортеж(x?)", doc="Создаёт неизменяемый кортеж из коллекции (или пустой).")
+def _tuple(interp, *args):
+    return tuple(as_list("кортеж", args[0])) if args else ()
+
+
 @builtin("сөздік", 0, 1, sig="сөздік(пары?)", doc="Создаёт словарь из списка пар [[ключ, значение], …] (или пустой).")
 def _dict(interp, *args):
     if not args:
@@ -95,7 +100,7 @@ def _dict(interp, *args):
         return dict(src)
     out = {}
     for pair in as_list("сөздік", src):
-        if not isinstance(pair, list) or len(pair) != 2:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
             rt_error("«сөздік»: ожидался список пар [[ключ, значение], …]")
         try:
             out[pair[0]] = pair[1]
@@ -200,7 +205,7 @@ def _map(interp, fn, items):
 def _reverse(interp, x):
     if isinstance(x, str):
         return x[::-1]
-    if isinstance(x, (list, range)):
+    if isinstance(x, (list, range, tuple)):
         return list(x)[::-1]
     rt_error(f"«кері»: нельзя перевернуть значение типа {type_name(x)}")
 
@@ -386,3 +391,17 @@ def _d_copy(interp, d):
 @method(dict, "босат", doc="Удаляет все пары.")
 def _d_clear(interp, d):
     d.clear()
+
+
+# ---------------- методы кортеж ----------------
+@method(tuple, "тап", 1, 1, sig=".тап(x)", doc="Индекс первого вхождения или -1.")
+def _t_index(interp, t, x):
+    try:
+        return t.index(x)
+    except ValueError:
+        return -1
+
+
+@method(tuple, "сана", 1, 1, sig=".сана(x)", doc="Сколько раз значение встречается.")
+def _t_count(interp, t, x):
+    return t.count(x)

@@ -65,7 +65,7 @@ def expect_str(fname: str, v):
 
 def as_list(fname: str, v) -> list:
     """Любая перебираемая коллекция -> список (копия)."""
-    if isinstance(v, (list, range, str)):
+    if isinstance(v, (list, range, str, tuple)):
         return list(v)
     if isinstance(v, dict):
         return list(v.keys())

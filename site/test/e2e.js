@@ -86,14 +86,14 @@ const offline = async (page) => page.route('**/*', (r) => {
   if (process.env.E2E_VERBOSE) console.log('шаг 9: разделы');
   // 9. разделы
   assert.strictEqual(await page.$$eval('#cards .card', (c) => c.length), 6);
-  assert.strictEqual(await page.$$eval('#tourTabs .tab', (c) => c.length), 8);
+  assert.strictEqual(await page.$$eval('#tourTabs .tab', (c) => c.length), 9);
   assert.strictEqual(await page.$$eval('#kwBody tr', (c) => c.length), 22);
   assert.ok((await page.$$eval('#libGrid .fn', (c) => c.length)) >= 42);
   assert.strictEqual(await page.$$eval('#cards .result .errcard', (c) => c.length), 1);
   await page.fill('#libSearch', 'сұрып');
   assert.ok((await page.$$eval('#libGrid .fn', (c) => c.length)) >= 1);
   await page.fill('#libSearch', '');
-  await page.click('#tourTabs .tab:nth-child(4)');
+  await page.click('#tourTabs .tab:has-text("Списки и словари")');
   assert.match(await page.textContent('#tourPanel .result pre'), /Астана: 1,350,000/);
 
   if (process.env.E2E_VERBOSE) console.log('шаг 10: демо-терминал печатает и показывает вывод');

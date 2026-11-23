@@ -32,6 +32,35 @@ class ListLit(Node):
 
 
 @dataclass(slots=True)
+class TupleLit(Node):
+    items: list
+
+
+@dataclass(slots=True)
+class ListComp(Node):
+    elt: Node
+    clauses: list  # [("for", [имена], выражение) | ("if", условие)]
+
+
+@dataclass(slots=True)
+class DictComp(Node):
+    key: Node
+    value: Node
+    clauses: list
+
+
+@dataclass(slots=True)
+class TargetList(Node):
+    items: list  # цели присваивания: Name | Index | Attr
+
+
+@dataclass(slots=True)
+class VarDeclMulti(Node):
+    names: list
+    value: Node
+
+
+@dataclass(slots=True)
 class DictLit(Node):
     pairs: list  # [(ключ, значение)]
 
@@ -67,6 +96,19 @@ class Call(Node):
     func: Node
     args: list
     kwargs: list = field(default_factory=list)  # [(имя, выражение)] — именованные аргументы
+
+
+@dataclass(slots=True)
+class Ternary(Node):
+    cond: Node
+    then: Node
+    orelse: Node
+
+
+@dataclass(slots=True)
+class Pipe(Node):
+    left: Node
+    right: Node
 
 
 @dataclass(slots=True)
@@ -112,6 +154,8 @@ class Assign(Node):
 @dataclass(slots=True)
 class ExprStmt(Node):
     expr: Node
+    mode: str = "."   # '.' выполнить, '?' показать значение, '!' утверждение
+    text: str = ""    # исходный текст выражения (для '?' и '!')
 
 
 @dataclass(slots=True)

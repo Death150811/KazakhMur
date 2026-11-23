@@ -18,10 +18,13 @@ from .tokens import (DEDENT, DOT, END, EOF, FLOAT, FPart, FSTR, INDENT, INT, KEY
                      KEYWORDS, KW, NAME, NL, OP, STR, Token)
 
 OPERATORS_3: tuple[str, ...] = ()
-OPERATORS_2 = ("**", "//", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=")
+OPERATORS_2 = ("**", "//", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "|>")
 OPERATORS_1 = "+-*/%<>=()[]{},:"
 OPENERS = {"(": ")", "[": "]", "{": "}"}
 CLOSERS = {")": "(", "]": "[", "}": "{"}
+COMMENT_CHARS = "#;"                 # комментарий начинается с «#» или «;»
+UNICODE_OPS = {"×": "*", "÷": "/", "≤": "<=", "≥": ">=", "≠": "!=", "−": "-"}  # математические знаки
+SQUARE_SWAP = {"(": "[", ")": "]", "[": "(", "]": ")"}   # режим «шаршы жақша»
 ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "0": "\0", "\\": "\\", '"': '"', "'": "'"}
 
 
@@ -51,11 +54,14 @@ def _script_of(ch: str) -> str | None:
 
 
 class Lexer:
-    def __init__(self, source: str, *, line: int = 1, col: int = 1, expr_mode: bool = False):
+    def __init__(self, source: str, *, line: int = 1, col: int = 1, expr_mode: bool = False,
+                 square: bool | None = None):
         src = source.replace("\r\n", "\n").replace("\r", "\n")
         if src.startswith("﻿"):
             src = src[1:]
         self.src = src
+        # режим скобок: явный параметр важнее директивы «;! жақша = шаршы» в начале файла
+        self.square = square if square is not None else (not expr_mode and read_pragma_square(src))
         self.n = len(src)
         self.i = 0
         self.line = line
@@ -109,7 +115,7 @@ class Lexer:
                     self._emit(NL, "\n", self.line, self.col)
                     self.at_line_start = True
                 self._adv()
-            elif ch == "#":
+            elif ch in COMMENT_CHARS:
                 while self.i < n and src[self.i] != "\n":
                     self._adv()
             elif is_digit(ch):
@@ -125,8 +131,8 @@ class Lexer:
 
     def _finish(self) -> None:
         if self.brackets:
-            b, line, col = self.brackets[-1]
-            self.error(f"Скобка '{b}' не закрыта", line, col)
+            _b, line, col, shown = self.brackets[-1]
+            self.error(f"Скобка '{shown}' не закрыта", line, col)
         if not self.expr_mode:
             last = self.tokens[-1] if self.tokens else None
             if last is not None and (last.kind == END or (last.kind == OP and last.value == ":")):
@@ -152,7 +158,7 @@ class Lexer:
             self.i = j
             self._adv()  # съесть '\n'
             return
-        if src[j] == "#":
+        if src[j] in COMMENT_CHARS:
             while j < n and src[j] != "\n":
                 j += 1
             self.col += j - self.i
@@ -338,7 +344,7 @@ class Lexer:
             text, spec = src[start:spec_at], src[spec_at + 1:end]
         if not text.strip():
             self.error("Пустое выражение в {…}", open_line, open_col)
-        return FPart(text, spec, line, col)
+        return FPart(text, spec, line, col, self.square)
 
     # ---- операторы ------------------------------------------------------
     def _operator(self) -> None:
@@ -350,9 +356,14 @@ class Lexer:
             self._adv(2)
             self._emit(OP, two, line, col)
             return
+        nxt = src[self.i + 1] if self.i + 1 < n else ""
+        ends_here = nxt == "" or nxt in " \t\n" or nxt in COMMENT_CHARS
+        if ch in UNICODE_OPS:
+            self._adv()
+            self._emit(OP, UNICODE_OPS[ch], line, col)
+            return
         if ch == ".":
-            nxt = src[self.i + 1] if self.i + 1 < n else ""
-            if nxt == "" or nxt in " \t\n#":
+            if ends_here:
                 self._adv()
                 self._emit(END, ".", line, col)
                 return
@@ -363,23 +374,48 @@ class Lexer:
             self.error("После точки ожидается пробел, конец строки или имя",
                        hint="Точка завершает инструкцию (после неё пробел или перевод строки) "
                             "либо ведёт к члену объекта (список.қос).")
+        if ch in "?!":
+            if ends_here:   # «?» — вопрос (показать значение), «!» — утверждение
+                self._adv()
+                self._emit(END, ch, line, col)
+                return
+            self.error(f"Знак «{ch}» завершает выражение и должен стоять в конце инструкции",
+                       hint="Примеры: x + 1?  (показать значение)  и  x > 0!  (проверить утверждение).")
         if ch in OPERATORS_1:
+            shown = ch
+            if ch in "()[]" and self.square:
+                ch = SQUARE_SWAP[ch]
             if ch in OPENERS:
-                self.brackets.append((ch, line, col))
+                self.brackets.append((ch, line, col, shown))
             elif ch in CLOSERS:
                 if not self.brackets or self.brackets[-1][0] != CLOSERS[ch]:
-                    self.error(f"Лишняя закрывающая скобка '{ch}'")
+                    self.error(f"Лишняя закрывающая скобка '{shown}'")
                 self.brackets.pop()
             self._adv()
             self._emit(OP, ch, line, col)
             return
         hint = None
-        if ch == ";":
-            hint = "В Qazaq инструкции завершаются точкой, а не точкой с запятой."
-        elif ch in "“”«»":
+        if ch in "“”«»":
             hint = "Используйте прямые кавычки \" или '."
         self.error(f"Неизвестный символ '{ch}' (U+{ord(ch):04X})", hint=hint)
 
 
-def tokenize(source: str) -> list[Token]:
-    return Lexer(source).tokenize()
+def read_pragma_square(src: str) -> bool:
+    """Директива в начале файла:  ;! жақша = шаршы   (или  #! brackets = square)."""
+    for raw in src.split("\n")[:8]:
+        line = raw.strip()
+        if not line:
+            continue
+        if line[0] in COMMENT_CHARS and line[1:2] == "!":
+            body = line[2:].replace(" ", "").lower()
+            if body in ("жақша=шаршы", "brackets=square"):
+                return True
+            continue
+        if line[0] in COMMENT_CHARS:
+            continue
+        break
+    return False
+
+
+def tokenize(source: str, square: bool | None = None) -> list[Token]:
+    return Lexer(source, square=square).tokenize()

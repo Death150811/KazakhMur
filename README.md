@@ -126,6 +126,10 @@ CLI и REPL, сквозное выполнение примеров, фаззи�
 | [CHANGELOG.md](CHANGELOG.md) | история изменений |
 | [examples/](examples) | примеры программ (`.qaz` + ожидаемый вывод `.expected`) |
 
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE).
+
 ## Структура
 
 ```text

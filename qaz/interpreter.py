@@ -72,7 +72,7 @@ class Interpreter:
         self.globals = Env(self.builtin_env)
 
         self._ex: dict[type, Callable] = {
-            A.VarDecl: self.x_vardecl, A.Assign: self.x_assign, A.ExprStmt: self.x_expr,
+            A.VarDecl: self.x_vardecl, A.VarDeclMulti: self.x_vardecl_multi, A.Assign: self.x_assign, A.ExprStmt: self.x_expr,
             A.If: self.x_if, A.While: self.x_while, A.For: self.x_for,
             A.FuncDef: self.x_funcdef, A.ClassDef: self.x_classdef, A.Return: self.x_return,
             A.Break: self.x_break, A.Continue: self.x_continue, A.Pass: lambda n, e: None,
@@ -83,14 +83,15 @@ class Interpreter:
             A.ListLit: self.e_list, A.DictLit: self.e_dict, A.Unary: self.e_unary,
             A.Binary: self.e_binary, A.Logical: self.e_logical, A.Compare: self.e_compare,
             A.Call: self.e_call, A.Index: self.e_index, A.Slice: self.e_slice,
-            A.Attr: self.e_attr, A.Lambda: self.e_lambda,
+            A.Attr: self.e_attr, A.Lambda: self.e_lambda, A.Ternary: self.e_ternary, A.Pipe: self.e_pipe,
+            A.TupleLit: self.e_tuple, A.ListComp: self.e_listcomp, A.DictComp: self.e_dictcomp,
         }
 
     # ------------------------------------------------------------------
     # Публичный интерфейс
     # ------------------------------------------------------------------
-    def run_source(self, source: str, *, echo: bool = False):
-        program = Parser(Lexer(source).tokenize()).parse_program()
+    def run_source(self, source: str, *, echo: bool = False, square: bool | None = None):
+        program = Parser(Lexer(source, square=square).tokenize(), source).parse_program()
         return self.run(program, echo=echo)
 
     def run(self, program: A.Program, *, echo: bool = False) -> None:
@@ -175,8 +176,43 @@ class Interpreter:
     def x_vardecl(self, node: A.VarDecl, env: Env) -> None:
         env.declare(node.name, self.evaluate(node.value, env))
 
+    def x_vardecl_multi(self, node: A.VarDeclMulti, env: Env) -> None:
+        values = self.unpack(self.evaluate(node.value, env), len(node.names))
+        for name, value in zip(node.names, values):
+            env.declare(name, value)
+
+    def unpack(self, value, count: int) -> list:
+        """Раскладывает значение на count частей (список, кортеж, строка, диапазон)."""
+        if isinstance(value, (list, tuple, str, range)):
+            items = list(value)
+            if len(items) == count:
+                return items
+            raise QazaqRuntimeError(
+                f"Нельзя разложить значение {to_repr(value)}: ожидалось элементов {count}, найдено {len(items)}")
+        raise QazaqRuntimeError(f"Нельзя разложить значение типа {type_name(value)}",
+                                hint="Раскладывать можно тізім, кортеж, мәтін и аралық.")
+
+    def _store(self, target, value, env: Env) -> None:
+        if isinstance(target, A.Name):
+            if not env.assign(target.name, value):
+                self._undeclared(target)
+        elif isinstance(target, A.Index):
+            self.set_index(self.evaluate(target.obj, env), self.evaluate(target.index, env), value)
+        else:  # A.Attr
+            obj = self.evaluate(target.obj, env)
+            if not isinstance(obj, QInstance):
+                raise QazaqRuntimeError(
+                    f"Поля можно менять только у объектов классов, а не у значения типа "
+                    f"{type_name(obj)}")
+            obj.fields[target.name] = value
+
     def x_assign(self, node: A.Assign, env: Env) -> None:
         target = node.target
+        if isinstance(target, A.TargetList):
+            values = self.unpack(self.evaluate(node.value, env), len(target.items))
+            for t, v in zip(target.items, values):
+                self._store(t, v, env)
+            return
         if isinstance(target, A.Name):
             value = self.evaluate(node.value, env)
             if node.op != "=":
@@ -214,7 +250,13 @@ class Interpreter:
 
     def x_expr(self, node: A.ExprStmt, env: Env) -> None:
         value = self.evaluate(node.expr, env)
-        if self.echo and env is self.globals and value is not None:
+        if node.mode == "?":      # вопрос: показать значение выражения
+            self.write(f"{node.text} → {to_repr(value)}\n")
+        elif node.mode == "!":    # утверждение: выражение должно быть истинным
+            if not truthy(value):
+                raise QazaqRuntimeError(f"Утверждение не выполнено: {node.text}",
+                                        hint=f"Значение выражения: {to_repr(value)}")
+        elif self.echo and env is self.globals and value is not None:
             self.write(to_repr(value) + "\n")
 
     def x_if(self, node: A.If, env: Env) -> None:
@@ -239,19 +281,16 @@ class Interpreter:
         iterable = self.evaluate(node.iterable, env)
         if isinstance(iterable, dict):
             iterable = list(iterable)
-        elif not isinstance(iterable, (list, str, range)):
+        elif not isinstance(iterable, (list, str, range, tuple)):
             raise QazaqRuntimeError(
                 f"Нельзя перебирать значение типа {type_name(iterable)}",
-                hint="Перебирать можно тізім, мәтін, сөздік и аралық.")
+                hint="Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.")
         targets = node.targets
         for item in iterable:
             if len(targets) == 1:
                 env.vars[targets[0]] = item
             else:
-                if not isinstance(item, list) or len(item) != len(targets):
-                    raise QazaqRuntimeError(
-                        f"Нельзя разложить значение {to_repr(item)} на {len(targets)} переменные")
-                for name, v in zip(targets, item):
+                for name, v in zip(targets, self.unpack(item, len(targets))):
                     env.vars[name] = v
             try:
                 self.exec_block(node.body, env)
@@ -400,7 +439,8 @@ class Interpreter:
         a_num, b_num = isinstance(a, NUMBER), isinstance(b, NUMBER)
         if op == "+":
             if (a_num and b_num) or (isinstance(a, str) and isinstance(b, str)) \
-                    or (isinstance(a, list) and isinstance(b, list)):
+                    or (isinstance(a, list) and isinstance(b, list)) \
+                    or (isinstance(a, tuple) and isinstance(b, tuple)):
                 return a + b
         elif op == "-":
             if a_num and b_num:
@@ -411,8 +451,8 @@ class Interpreter:
                         and a.bit_length() + b.bit_length() > MAX_INT_BITS:
                     raise QazaqRuntimeError("Результат умножения слишком велик")
                 return a * b
-            seq, n = (a, b) if isinstance(a, (str, list)) else (b, a)
-            if isinstance(seq, (str, list)) and isinstance(n, int) and not isinstance(n, bool):
+            seq, n = (a, b) if isinstance(a, (str, list, tuple)) else (b, a)
+            if isinstance(seq, (str, list, tuple)) and isinstance(n, int) and not isinstance(n, bool):
                 if len(seq) * max(n, 0) > MAX_SEQ_RESULT:
                     raise QazaqRuntimeError("Результат повторения слишком велик")
                 return seq * n
@@ -462,10 +502,10 @@ class Interpreter:
                     if not isinstance(a, str):
                         raise QazaqRuntimeError(
                             f"В строке можно искать только строку, а не {type_name(a)}")
-                elif not isinstance(b, (list, dict, range)):
+                elif not isinstance(b, (list, dict, range, tuple)):
                     raise QazaqRuntimeError(
                         f"Оператор «ішінде» не применим к типу {type_name(b)}",
-                        hint="Правая часть должна быть мәтін, тізім, сөздік или аралық.")
+                        hint="Правая часть должна быть мәтін, тізім, кортеж, сөздік или аралық.")
                 return (a in b) == (op == "ішінде")
         except TypeError:
             raise QazaqRuntimeError(
@@ -474,7 +514,7 @@ class Interpreter:
 
     # ---- индексы, срезы, поля ------------------------------------------
     def get_index(self, obj, idx):
-        if isinstance(obj, (list, str, range)):
+        if isinstance(obj, (list, str, range, tuple)):
             if isinstance(idx, bool) or not isinstance(idx, int):
                 raise QazaqRuntimeError(f"Индекс должен быть бүтін (целым), а не {type_name(idx)}")
             try:
@@ -521,7 +561,7 @@ class Interpreter:
             if v is not None and (isinstance(v, bool) or not isinstance(v, int)):
                 raise QazaqRuntimeError(f"Границы среза должны быть бүтін, а не {type_name(v)}")
             parts.append(v)
-        if not isinstance(obj, (list, str, range)):
+        if not isinstance(obj, (list, str, range, tuple)):
             raise QazaqRuntimeError(f"Значение типа {type_name(obj)} не поддерживает срезы")
         if parts[2] == 0:
             raise QazaqRuntimeError("Шаг среза не может быть нулём")
@@ -562,6 +602,66 @@ class Interpreter:
         return self.get_attr(self.evaluate(node.obj, env), node.name)
 
     # ---- вызовы ---------------------------------------------------------
+    def e_tuple(self, node: A.TupleLit, env: Env):
+        return tuple(self.evaluate(item, env) for item in node.items)
+
+    def _run_comp(self, clauses: list, idx: int, env: Env, emit) -> None:
+        if idx == len(clauses):
+            emit()
+            return
+        kind = clauses[idx][0]
+        if kind == "if":
+            if truthy(self.evaluate(clauses[idx][1], env)):
+                self._run_comp(clauses, idx + 1, env, emit)
+            return
+        _, targets, iterable_node = clauses[idx]
+        iterable = self.evaluate(iterable_node, env)
+        if isinstance(iterable, dict):
+            iterable = list(iterable)
+        elif not isinstance(iterable, (list, str, range, tuple)):
+            raise QazaqRuntimeError(f"Нельзя перебирать значение типа {type_name(iterable)}",
+                                    hint="Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.")
+        for item in iterable:
+            if len(targets) == 1:
+                env.vars[targets[0]] = item
+            else:
+                for name, v in zip(targets, self.unpack(item, len(targets))):
+                    env.vars[name] = v
+            self._tick()
+            self._run_comp(clauses, idx + 1, env, emit)
+
+    def e_listcomp(self, node: A.ListComp, env: Env):
+        local, out = Env(env), []
+        self._run_comp(node.clauses, 0, local, lambda: out.append(self.evaluate(node.elt, local)))
+        return out
+
+    def e_dictcomp(self, node: A.DictComp, env: Env):
+        local, out = Env(env), {}
+
+        def emit():
+            key = self.evaluate(node.key, local)
+            try:
+                out[key] = self.evaluate(node.value, local)
+            except TypeError:
+                raise QazaqRuntimeError(f"Ключом словаря не может быть значение типа {type_name(key)}")
+        self._run_comp(node.clauses, 0, local, emit)
+        return out
+
+    def e_ternary(self, node: A.Ternary, env: Env):
+        if truthy(self.evaluate(node.cond, env)):
+            return self.evaluate(node.then, env)
+        return self.evaluate(node.orelse, env)
+
+    def e_pipe(self, node: A.Pipe, env: Env):
+        left = self.evaluate(node.left, env)
+        right = node.right
+        if isinstance(right, A.Call):   # x |> f(a)  ==  f(a, x)
+            fn = self.evaluate(right.func, env)
+            args = [self.evaluate(a, env) for a in right.args] + [left]
+            kwargs = ({n: self.evaluate(e, env) for n, e in right.kwargs} if right.kwargs else None)
+            return self.call_value(fn, args, node.line, kwargs)
+        return self.call_value(self.evaluate(right, env), [left], node.line)
+
     def e_lambda(self, node: A.Lambda, env: Env):
         body = [A.Return(node.body, line=node.body.line, col=node.body.col)]
         return QFunction("<лямбда>", node.params, body, env)

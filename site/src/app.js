@@ -133,7 +133,7 @@ const METHOD_NAMES = new Set(LANGUAGE.methods);
 const RE_LATIN = /\p{Script=Latin}/u, RE_CYR = /\p{Script=Cyrillic}/u;
 const RE_IDENT = /[\p{L}_][\p{L}\p{N}_\p{M}]*/uy;
 const RE_NUM = /\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?/y;
-const RE_OP = /\*\*|\/\/|==|!=|<=|>=|\+=|-=|\*=|\/=|[-+*\/%<>=]/y;
+const RE_OP = /\*\*|\/\/|==|!=|<=|>=|\+=|-=|\*=|\/=|\|>|[-+*\/%<>=×÷≤≥≠−]/y;
 
 function scanString(text, i0, q, isF, out) {
   const n = text.length;
@@ -182,19 +182,23 @@ function tokenize(text, inInterp = false) {
     const ch = text[i];
     if (ch === '\n') { out.push({ c: null, s: '\n' }); i++; continue; }
     if (ch === ' ' || ch === '\t') { let j = i; while (j < n && (text[j] === ' ' || text[j] === '\t')) j++; out.push({ c: null, s: text.slice(i, j) }); i = j; continue; }
-    if (ch === '#' && !inInterp) { let j = text.indexOf('\n', i); if (j < 0) j = n; out.push({ c: 't-com', s: text.slice(i, j) }); i = j; continue; }
+    if ((ch === '#' || ch === ';') && !inInterp) { let j = text.indexOf('\n', i); if (j < 0) j = n; out.push({ c: 't-com', s: text.slice(i, j) }); i = j; continue; }
     if (ch === '"' || ch === "'") { i = scanString(text, i, ch, false, out); prevDot = false; continue; }
     if (ch === 'ф' && (text[i + 1] === '"' || text[i + 1] === "'")) { out.push({ c: 't-str', s: 'ф' }); i = scanString(text, i + 1, text[i + 1], true, out); prevDot = false; continue; }
     if (ch >= '0' && ch <= '9') { RE_NUM.lastIndex = i; const m = RE_NUM.exec(text); out.push({ c: 't-num', s: m[0] }); i += m[0].length; prevDot = false; continue; }
     if (ch === '.') {
       const nx = text[i + 1];
-      if (nx === undefined || nx === ' ' || nx === '\t' || nx === '\n' || nx === '#') { out.push({ c: 't-end', s: '.' }); prevDot = false; }
+      if (nx === undefined || nx === ' ' || nx === '\t' || nx === '\n' || nx === '#' || nx === ';') { out.push({ c: 't-end', s: '.' }); prevDot = false; }
       else { out.push({ c: 't-dot', s: '.' }); prevDot = true; }
       i++; continue;
     }
+    if ((ch === '?' || ch === '!') && text[i + 1] !== '=') {
+      const nx = text[i + 1];
+      if (nx === undefined || nx === ' ' || nx === '\t' || nx === '\n' || nx === '#' || nx === ';') { out.push({ c: 't-end', s: ch }); i++; prevDot = false; continue; }
+    }
     if (ch === ':') {
       const rest = text.slice(i + 1, i + 200);
-      const endOfLine = /^[ \t]*(?:#[^\n]*)?(?:\n|$)/.test(rest);
+      const endOfLine = /^[ \t]*(?:[#;][^\n]*)?(?:\n|$)/.test(rest);
       out.push({ c: endOfLine && !inInterp ? 't-colon' : 't-op', s: ':' }); i++; prevDot = false; continue;
     }
     RE_IDENT.lastIndex = i;
@@ -397,7 +401,7 @@ ta.addEventListener('keydown', (e) => {
     const ls = v.lastIndexOf('\n', s - 1) + 1;
     const before = v.slice(ls, s);
     const indent = before.match(/^[ \t]*/)[0];
-    const code = before.replace(/#.*$/, '').trimEnd();
+    const code = before.replace(/[#;].*$/, '').trimEnd();
     insertText('\n' + indent + (code.endsWith(':') ? '    ' : ''));
     return;
   }
@@ -515,7 +519,7 @@ function acUpdate() {
   if (s !== ta.selectionEnd) return acHide();
   const before = ta.value.slice(Math.max(0, s - 40), s);
   const lineBefore = ta.value.slice(ta.value.lastIndexOf('\n', s - 1) + 1, s);
-  if (/#/.test(lineBefore) || ((lineBefore.match(/"/g) || []).length % 2 === 1 && !/ф"[^"]*\{[^}]*$/.test(lineBefore))) return acHide();
+  if (/[#;]/.test(lineBefore) || ((lineBefore.match(/"/g) || []).length % 2 === 1 && !/ф"[^"]*\{[^}]*$/.test(lineBefore))) return acHide();
   const m = before.match(/[\p{L}_][\p{L}\p{N}_]*$/u);
   if (!m || m[0].length < 2) return acHide();
   const word = m[0].normalize('NFC').toLowerCase();
@@ -1004,7 +1008,7 @@ $('#langBtn').addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 applyTheme(initialTheme());
 $('#verTag').textContent = 'v' + LANGUAGE.version;
-$('#footVer').textContent = 'Qazaq ' + LANGUAGE.version;
+$('#footVer').textContent = 'Qazaq ' + LANGUAGE.version + ' · MIT';
 ta.value = store.get('qazaq.code') || examples[0].code;
 applyI18n();
 renderDynamic();
