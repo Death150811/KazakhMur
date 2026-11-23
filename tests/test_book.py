@@ -1,12 +1,16 @@
 """Книга на сайте: ссылки на термины, примеры кода, словарь."""
-import json
+import importlib.util
 import re
 from pathlib import Path
 
+from qaz.language import language_definition
 from qaz.runner import execute
 
 ROOT = Path(__file__).resolve().parent.parent
-BOOK = json.loads((ROOT / "site" / "src" / "book.json").read_text(encoding="utf-8"))
+_spec = importlib.util.spec_from_file_location("build_site", ROOT / "scripts" / "build_site.py")
+_build = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_build)
+BOOK = _build.load_book(language_definition())  # так же, как при сборке сайта
 MARK = re.compile(r"\[\[([a-z0-9-]+)\|(.+?)\]\]")
 
 
@@ -61,11 +65,12 @@ def test_every_chapter_has_three_levels_and_questions():
 
 
 def test_book_numbers_match_the_project():
-    # числа в тексте книги не должны разойтись с реальностью
-    from qaz.language import language_definition
+    # числа в тексте книги подставляются при сборке и не могут разойтись с реальностью
     lang = language_definition()
     text = "\n".join(all_strings(BOOK))
-    assert f"{len(lang['builtins'])} функции и {len(lang['methods'])} метода" in text or \
-        f"{len(lang['builtins'])} функций и {len(lang['methods'])} методов" in text or \
-        f"{len(lang['builtins'])} функции" in text
+    assert "{{" not in text, "остался неподставленный шаблон"
+    nb, nm = len(lang["builtins"]), len(lang["methods"])
+    assert f"{nb} {_build.plural(nb, 'функция', 'функции', 'функций')} и {nm} {_build.plural(nm, 'метод', 'метода', 'методов')}" in text
     assert len(lang["keywords"]) == 22
+    assert _build.plural(1, "а", "б", "в") == "а" and _build.plural(3, "а", "б", "в") == "б"
+    assert _build.plural(11, "а", "б", "в") == "в" and _build.plural(22, "а", "б", "в") == "б" and _build.plural(50, "а", "б", "в") == "в"

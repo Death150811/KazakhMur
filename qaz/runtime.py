@@ -74,6 +74,7 @@ class Builtin:
     doc: str = ""
     unsafe: bool = False  # недоступна в безопасном режиме (Playground)
     kw: tuple | None = None  # имена параметров, если функция принимает именованные аргументы
+    kwonly: tuple | None = None  # параметры, которые можно задать только по имени (кілт=…)
 
 
 @dataclass(eq=False)

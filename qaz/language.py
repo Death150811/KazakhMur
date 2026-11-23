@@ -25,7 +25,8 @@ def language_definition() -> dict:
                       "description": v[1]} for k, v in KEYWORD_INFO.items()],
         "builtins": [{"name": b.name, "aliases": fn_aliases.get(b.name, []), "category": b.category,
                       "signature": b.sig, "doc": b.doc, "unsafe": b.unsafe,
-                      "kw": list(b.kw) if b.kw else []}
+                      "kw": list(b.kw) if b.kw else [],
+                      "kwonly": list(b.kwonly) if b.kwonly else []}
                      for name, b in BUILTINS.items() if name == b.name],
         "constants": sorted(CONSTANTS),
         "methods": sorted({name for table in METHODS.values() for name in table}),

@@ -101,7 +101,7 @@ function def(name, minArgs, maxArgs, fn) {
   const meta = LANG_BUILTINS.get(name);
   if (!meta) throw new Error('Нет описания встроенной функции в language.json: ' + name);
   BUILTINS.set(name, new Builtin(name, fn, minArgs, maxArgs, meta.category, meta.signature, meta.doc, !!meta.unsafe,
-                                 meta.kw && meta.kw.length ? meta.kw : null));
+                                 meta.kw && meta.kw.length ? meta.kw : null, meta.kwonly && meta.kwonly.length ? meta.kwonly : null));
 }
 
 const METHODS = { str: {}, list: {}, dict: {}, tuple: {} };
@@ -229,20 +229,21 @@ def('модуль', 1, 1, (it, x) => {
   expectNumber('модуль', x);
   return typeof x === 'bigint' ? (x < 0n ? -x : x) : Math.abs(x);
 });
-function minMax(name, wantMax, args) {
+function minMax(it, name, wantMax, args, key) {
   const items = args.length === 1 ? asList(name, args[0]) : args;
   if (!items.length) throw rtError(`«${name}»: пустая коллекция`);
-  let best = items[0];
+  const keys = key === undefined ? items : items.map((x) => it.callValue(key, [x]));
+  let best = 0;
   for (let i = 1; i < items.length; i++) {
     let c;
-    try { c = compareValues(items[i], best); }
+    try { c = compareValues(keys[i], keys[best]); }
     catch (e) { if (e instanceof Unordered) throw rtError(`«${name}»: значения нельзя сравнивать между собой`); throw e; }
-    if (c !== null && (wantMax ? c > 0 : c < 0)) best = items[i];
+    if (c !== null && (wantMax ? c > 0 : c < 0)) best = i;
   }
-  return best;
+  return items[best];
 }
-def('минимум', 1, null, (it, ...args) => minMax('минимум', false, args));
-def('максимум', 1, null, (it, ...args) => minMax('максимум', true, args));
+def('минимум', 1, null, (it, ...rest) => { const o = rest.pop(); return minMax(it, 'минимум', false, rest, o.кілт); });
+def('максимум', 1, null, (it, ...rest) => { const o = rest.pop(); return minMax(it, 'максимум', true, rest, o.кілт); });
 def('қосынды', 1, 2, (it, items, start = 0n) => {
   const values = [expectNumber('қосынды', start)];
   for (const x of asList('қосынды', items)) values.push(expectNumber('қосынды', x));
@@ -270,14 +271,24 @@ def('төбе', 1, 1, (it, x) => {
   expectNumber('төбе', x);
   return typeof x === 'bigint' ? x : BigInt(Math.ceil(x));
 });
-def('сұрып', 1, 2, (it, items, reverse = false) => {
+def('сұрып', 1, 2, (it, items, reverse, opts) => {
+  if (opts === undefined) { opts = reverse; reverse = false; }   // кері не задан: последним пришёл объект с кілт
   const list = asList('сұрып', items);
   const rev = truthy(reverse);
+  const key = opts.кілт;
   try {
-    return list.sort((a, b) => {
-      const c = rev ? compareValues(b, a) : compareValues(a, b);
+    if (key === undefined) {
+      return list.sort((a, b) => {
+        const c = rev ? compareValues(b, a) : compareValues(a, b);
+        return c === null ? 0 : c;
+      });
+    }
+    const pairs = list.map((x) => ({ x, k: it.callValue(key, [x]) }));
+    pairs.sort((a, b) => {
+      const c = rev ? compareValues(b.k, a.k) : compareValues(a.k, b.k);
       return c === null ? 0 : c;
     });
+    return pairs.map((p) => p.x);
   } catch (e) {
     if (e instanceof Unordered) throw rtError('«сұрып»: значения разных типов нельзя сортировать вместе');
     throw e;
@@ -289,6 +300,34 @@ def('кері', 1, 1, (it, x) => {
   if (typeof x === 'string') return strChars(x).reverse().join('');
   if (Array.isArray(x) || x instanceof QRange || x instanceof QTuple) return asList('кері', x).reverse();
   throw rtError(`«кері»: нельзя перевернуть значение типа ${typeName(x)}`);
+});
+
+def('нөмірле', 1, 2, (it, items, start = 0n) => {
+  expectInt('нөмірле', start);
+  return asList('нөмірле', items).map((x, i) => new QTuple([start + BigInt(i), x]));
+});
+def('жұптастыр', 2, null, (it, ...colls) => {
+  const lists = colls.map((c) => asList('жұптастыр', c));
+  const n = Math.min(...lists.map((l) => l.length));
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(new QTuple(lists.map((l) => l[i])));
+  return out;
+});
+def('бірі', 1, 1, (it, items) => asList('бірі', items).some((x) => truthy(x)));
+def('барлығы', 1, 1, (it, items) => asList('барлығы', items).every((x) => truthy(x)));
+def('символ', 1, 1, (it, n) => {
+  expectInt('символ', n);
+  if (n < 0n || n > 0x10FFFFn || (n >= 0xD800n && n <= 0xDFFFn)) throw rtError('«символ»: номер вне диапазона Unicode');
+  return String.fromCodePoint(Number(n));
+});
+def('код', 1, 1, (it, c) => {
+  if (typeof c !== 'string' || strChars(c).length !== 1) throw rtError('«код»: ожидалась строка из одного символа');
+  return BigInt(c.codePointAt(0));
+});
+def('бөлінді', 2, 2, (it, a, b) => {
+  expectNumber('бөлінді', a);
+  expectNumber('бөлінді', b);
+  return new QTuple([it.binop('//', a, b), it.binop('%', a, b)]);
 });
 
 // ---------------- методы мәтін ----------------

@@ -32,6 +32,26 @@ def engine_source() -> str:
     return "function createQazaqEngine(LANG) {\n'use strict';\n" + body + "\n}\n"
 
 
+def plural(n: int, one: str, few: str, many: str) -> str:
+    """Русское склонение: 1 функция, 2 функции, 5 функций."""
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+def load_book(lang: dict) -> dict:
+    """book.json с подставленными числами (их не нужно вручную править при изменении языка)."""
+    text = (SRC / "book.json").read_text(encoding="utf-8")
+    nb, nm = len(lang["builtins"]), len(lang["methods"])
+    for key, value in {"N_BUILTINS": str(nb), "N_METHODS": str(nm), "N_KEYWORDS": str(len(lang["keywords"])),
+                       "W_FUNCS": plural(nb, "функция", "функции", "функций"),
+                       "W_METHODS": plural(nm, "метод", "метода", "методов")}.items():
+        text = text.replace("{{" + key + "}}", value)
+    return json.loads(text)
+
+
 def load_examples() -> list[dict]:
     items = []
     for path in sorted((ROOT / "examples").glob("*.qaz")):
@@ -58,7 +78,7 @@ def build() -> dict[str, Path]:
         "LANGUAGE": lang,
         "EXAMPLES": load_examples(),
         "TOUR": json.loads((SRC / "tour.json").read_text(encoding="utf-8")),
-        "BOOK": json.loads((SRC / "book.json").read_text(encoding="utf-8")),
+        "BOOK": load_book(lang),
     }
     page = (SRC / "page.html").read_text(encoding="utf-8")
     css = (SRC / "style.css").read_text(encoding="utf-8")

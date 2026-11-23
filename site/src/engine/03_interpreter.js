@@ -602,9 +602,17 @@ class Interpreter {
     if (fn instanceof BoundMethod) return this.callFunction(fn.func, [fn.receiver, ...args], line, kwargs);
     if (fn instanceof Builtin) {
       if (fn.unsafe && this.safe) throw rtError(`Функция «${fn.name}» недоступна в безопасном режиме (Playground)`);
-      if (kwargs) args = this.bindBuiltinKwargs(fn, args, kwargs);
+      let opts = null;
+      if (fn.kwonly) {
+        opts = {};
+        if (kwargs) {
+          kwargs = new Map(kwargs);
+          for (const name of fn.kwonly) if (kwargs.has(name)) { opts[name] = kwargs.get(name); kwargs.delete(name); }
+        }
+      }
+      if (kwargs && kwargs.size) args = this.bindBuiltinKwargs(fn, args, kwargs);
       this.arity(fn.name, args.length, fn.minArgs, fn.maxArgs);
-      return this.callNative(fn.name, fn.fn, [this, ...args]);
+      return this.callNative(fn.name, fn.fn, opts ? [this, ...args, opts] : [this, ...args]);
     }
     if (fn instanceof BoundBuiltin) {
       if (kwargs) throw rtError(`Метод «${fn.name}» не принимает именованные аргументы`);
@@ -616,13 +624,13 @@ class Interpreter {
   }
 
   bindBuiltinKwargs(fn, args, kwargs) {
-    if (!fn.kw) throw rtError(`Функция «${fn.name}» не принимает именованные аргументы`,
-                              "Для сравнения используйте '==', а аргументы передавайте по порядку.");
+    if (!fn.kw && !fn.kwonly) throw rtError(`Функция «${fn.name}» не принимает именованные аргументы`,
+                                            "Для сравнения используйте '==', а аргументы передавайте по порядку.");
     const slots = args.slice();
     const MISSING = {};
     for (const [name, value] of kwargs) {
-      const idx = fn.kw.indexOf(name);
-      if (idx < 0) throw rtError(`У функции «${fn.name}» нет параметра «${name}»`, 'Параметры: ' + fn.kw.join(', '));
+      const idx = (fn.kw || []).indexOf(name);
+      if (idx < 0) throw rtError(`У функции «${fn.name}» нет параметра «${name}»`, 'Параметры: ' + [...(fn.kw || []), ...(fn.kwonly || [])].join(', '));
       if (idx < args.length) throw rtError(`Параметр «${name}» функции «${fn.name}» получил значение дважды`);
       while (slots.length <= idx) slots.push(MISSING);
       slots[idx] = value;

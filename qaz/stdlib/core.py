@@ -125,24 +125,29 @@ def _abs(interp, x):
     return abs(expect_number("модуль", x))
 
 
-def _min_max(name: str, pick, args):
+def _min_max(interp, name: str, pick, args, key):
     items = as_list(name, args[0]) if len(args) == 1 else list(args)
     if not items:
         rt_error(f"«{name}»: пустая коллекция")
     try:
-        return pick(items)
+        if key is None:
+            return pick(items)
+        keys = [interp.call_value(key, [x]) for x in items]
+        return items[pick(range(len(items)), key=keys.__getitem__)]
     except TypeError:
         rt_error(f"«{name}»: значения нельзя сравнивать между собой")
 
 
-@builtin("минимум", 1, None, sig="минимум(коллекция) | минимум(a, b, …)", doc="Наименьшее значение.")
-def _min(interp, *args):
-    return _min_max("минимум", min, args)
+@builtin("минимум", 1, None, kwonly=("кілт",), sig="минимум(коллекция) | минимум(a, b, …) | кілт=функция",
+         doc="Наименьшее значение. С кілт=функция сравниваются результаты функции, например минимум(слова, кілт=ұзындық).")
+def _min(interp, *args, кілт=None):
+    return _min_max(interp, "минимум", min, args, кілт)
 
 
-@builtin("максимум", 1, None, sig="максимум(коллекция) | максимум(a, b, …)", doc="Наибольшее значение.")
-def _max(interp, *args):
-    return _min_max("максимум", max, args)
+@builtin("максимум", 1, None, kwonly=("кілт",), sig="максимум(коллекция) | максимум(a, b, …) | кілт=функция",
+         doc="Наибольшее значение. С кілт=функция сравниваются результаты функции, например максимум(слова, кілт=ұзындық).")
+def _max(interp, *args, кілт=None):
+    return _min_max(interp, "максимум", max, args, кілт)
 
 
 @builtin("қосынды", 1, 2, kw=("коллекция", "бастау"), sig="қосынды(коллекция, бастау=0)", doc="Сумма чисел коллекции (дробные суммируются точно: 0.1 + 0.2 + 0.3 = 0.6).")
@@ -183,10 +188,16 @@ def _ceil(interp, x):
 
 
 # ---------------- коллекции ----------------
-@builtin("сұрып", 1, 2, kw=("коллекция", "кері"), sig="сұрып(коллекция, кері=жалған)", doc="Новый отсортированный список. Параметр кері=ақиқат — по убыванию.")
-def _sorted(interp, items, reverse=False):
+@builtin("сұрып", 1, 2, kw=("коллекция", "кері"), kwonly=("кілт",), sig="сұрып(коллекция, кері=жалған, кілт=функция)",
+         doc="Новый отсортированный список. Параметр кері=ақиқат — по убыванию; кілт=функция — сортировать по результату функции.")
+def _sorted(interp, items, reverse=False, *, кілт=None):
+    values = as_list("сұрып", items)
     try:
-        return sorted(as_list("сұрып", items), reverse=truthy(reverse))
+        if кілт is None:
+            return sorted(values, reverse=truthy(reverse))
+        keys = [interp.call_value(кілт, [x]) for x in values]
+        order = sorted(range(len(values)), key=keys.__getitem__, reverse=truthy(reverse))
+        return [values[i] for i in order]
     except TypeError:
         rt_error("«сұрып»: значения разных типов нельзя сортировать вместе")
 
@@ -208,6 +219,51 @@ def _reverse(interp, x):
     if isinstance(x, (list, range, tuple)):
         return list(x)[::-1]
     rt_error(f"«кері»: нельзя перевернуть значение типа {type_name(x)}")
+
+
+@builtin("нөмірле", 1, 2, kw=("коллекция", "бастау"), sig="нөмірле(коллекция, бастау=0)",
+         doc="Список пар (номер, элемент): әрбір і, x ішінде нөмірле(список):")
+def _enumerate(interp, items, start=0):
+    expect_int("нөмірле", start)
+    return [(i, x) for i, x in enumerate(as_list("нөмірле", items), start)]
+
+
+@builtin("жұптастыр", 2, None, sig="жұптастыр(a, b, …)",
+         doc="Список кортежей из элементов коллекций по порядку; длина — по самой короткой.")
+def _zip(interp, *colls):
+    return list(zip(*[as_list("жұптастыр", c) for c in colls]))
+
+
+@builtin("бірі", 1, 1, sig="бірі(коллекция)", doc="Истина, если хотя бы один элемент истинный (для пустой — жалған).")
+def _any(interp, items):
+    return any(truthy(x) for x in as_list("бірі", items))
+
+
+@builtin("барлығы", 1, 1, sig="барлығы(коллекция)", doc="Истина, если все элементы истинные (для пустой — ақиқат).")
+def _all(interp, items):
+    return all(truthy(x) for x in as_list("барлығы", items))
+
+
+@builtin("символ", 1, 1, sig="символ(код)", doc="Символ Unicode по номеру: символ(1241) даёт «ә».")
+def _chr(interp, n):
+    expect_int("символ", n)
+    if not (0 <= n <= 0x10FFFF) or 0xD800 <= n <= 0xDFFF:
+        rt_error("«символ»: номер вне диапазона Unicode")
+    return chr(n)
+
+
+@builtin("код", 1, 1, sig="код(символ)", doc="Номер Unicode символа: код(\"ә\") даёт 1241.")
+def _ord(interp, c):
+    if not isinstance(c, str) or len(c) != 1:
+        rt_error("«код»: ожидалась строка из одного символа")
+    return ord(c)
+
+
+@builtin("бөлінді", 2, 2, sig="бөлінді(a, b)", doc="Кортеж (a // b, a % b): неполное частное и остаток.")
+def _divmod(interp, a, b):
+    expect_number("бөлінді", a)
+    expect_number("бөлінді", b)
+    return (interp.binop("//", a, b), interp.binop("%", a, b))
 
 
 # ---------------- методы мәтін ----------------

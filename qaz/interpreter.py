@@ -681,10 +681,14 @@ class Interpreter:
             if fn.unsafe and self.safe:
                 raise QazaqRuntimeError(
                     f"Функция «{fn.name}» недоступна в безопасном режиме (Playground)")
+            extra = {}
+            if kwargs and fn.kwonly:
+                kwargs = dict(kwargs)
+                extra = {k: kwargs.pop(k) for k in list(kwargs) if k in fn.kwonly}
             if kwargs:
                 args = self._bind_builtin_kwargs(fn, args, kwargs)
             self._arity(fn.name, len(args), fn.min_args, fn.max_args)
-            return self._call_native(fn.name, fn.fn, (self, *args))
+            return self._call_native(fn.name, fn.fn, (self, *args), extra)
         if isinstance(fn, BoundBuiltin):
             if kwargs:
                 raise QazaqRuntimeError(f"Метод «{fn.name}» не принимает именованные аргументы")
@@ -696,15 +700,15 @@ class Interpreter:
 
     @staticmethod
     def _bind_builtin_kwargs(fn: Builtin, args: list, kwargs: dict) -> list:
-        if not fn.kw:
+        if not fn.kw and not fn.kwonly:
             raise QazaqRuntimeError(
                 f"Функция «{fn.name}» не принимает именованные аргументы",
                 hint="Для сравнения используйте '==', а аргументы передавайте по порядку.")
         slots = list(args)
         for name, value in kwargs.items():
-            if name not in fn.kw:
+            if name not in (fn.kw or ()):
                 raise QazaqRuntimeError(f"У функции «{fn.name}» нет параметра «{name}»",
-                                        hint="Параметры: " + ", ".join(fn.kw))
+                                        hint="Параметры: " + ", ".join((fn.kw or ()) + (fn.kwonly or ())))
             idx = fn.kw.index(name)
             if idx < len(args):
                 raise QazaqRuntimeError(f"Параметр «{name}» функции «{fn.name}» получил значение дважды")
@@ -717,10 +721,10 @@ class Interpreter:
                     f"Функция «{fn.name}» не получила значение параметра «{fn.kw[i]}»")
         return slots
 
-    def _call_native(self, name: str, fn, args: tuple):
+    def _call_native(self, name: str, fn, args: tuple, extra: dict | None = None):
         self._tick()
         try:
-            return fn(*args)
+            return fn(*args, **extra) if extra else fn(*args)
         except (QazaqError, _Return, _Break, _Continue, BrokenPipeError):
             raise
         except RecursionError:

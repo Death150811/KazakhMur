@@ -6,6 +6,7 @@ for (const b of LANG.builtins) {
 for (const b of LANG.builtins) {
   const have = BUILTINS.get(b.name).kw;
   if (JSON.stringify(have || []) !== JSON.stringify(b.kw || [])) throw new Error('Имена параметров не совпадают с Python: ' + b.name);
+  if (JSON.stringify(BUILTINS.get(b.name).kwonly || []) !== JSON.stringify(b.kwonly || [])) throw new Error('Параметры только по имени не совпадают с Python: ' + b.name);
 }
 for (const m of LANG.methods) {
   if (!Object.values(METHODS).some((t) => m in t)) throw new Error('Не реализован метод: ' + m);
