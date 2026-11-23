@@ -31,6 +31,8 @@ class Interpreter {
     for (const [name, b] of BUILTINS) this.builtinEnv.vars.set(name, b);
     for (const [name, v] of Object.entries(CONSTANTS)) this.builtinEnv.vars.set(name, v);
     this.globals = new Env(this.builtinEnv);
+    this.onStep = null;   // функция (инструкция, окружение): вызывается перед каждой инструкцией (режим «по шагам»)
+    this.frames = [];     // имена активных функций (заполняется только при onStep)
   }
 
   // ---- публичное ----
@@ -73,6 +75,7 @@ class Interpreter {
   // ---- инструкции ----
   runStmt(node, env) {
     this.tick();
+    if (this.onStep !== null) this.onStep(node, env);
     try {
       switch (node.t) {
         case 'VarDecl': env.declare(node.name, this.evaluate(node.value, env)); return;
@@ -686,12 +689,14 @@ class Interpreter {
     }
     this.depth++;
     this.tick();
+    const traced = this.onStep !== null;
+    if (traced) this.frames.push({ name: fn.name, line });
     try { this.runBlock(fn.body, local); }
     catch (e) {
       if (e instanceof ReturnSignal) return e.value;
       if (e instanceof QazaqError) e.trace.push([fn.name, line]);
       throw e;
-    } finally { this.depth--; }
+    } finally { this.depth--; if (traced) this.frames.pop(); }
     return null;
   }
 

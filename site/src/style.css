@@ -190,6 +190,7 @@ button { font: inherit; color: inherit; }
 .hl code { font: inherit; display: block; width: max-content; min-width: 100%; }
 .hl .ln { display: block; min-height: var(--lh); }
 .hl .ln.err { background: rgba(255, 107, 122, 0.12); box-shadow: inset 3px 0 0 var(--danger); }
+.hl .ln.step { background: rgba(254, 197, 12, 0.16); box-shadow: inset 3px 0 0 var(--gold); }
 .code-wrap textarea { background: transparent; color: transparent; -webkit-text-fill-color: transparent; caret-color: var(--gold); resize: none; outline: none; overflow: auto; width: 100%; height: 100%; scrollbar-width: thin; scrollbar-color: #2b4a63 transparent; }
 .code-wrap textarea::selection { background: rgba(0, 175, 202, 0.4); -webkit-text-fill-color: transparent; }
 .t-kw { color: var(--c-kw); font-weight: 700; }
@@ -497,3 +498,27 @@ body[data-view="book"] #book { display: block; }
 .tree .f { margin-left: 8px; font-family: var(--mono); color: var(--t-ink); }
 .tree .f i { font-style: normal; color: var(--t-ink3); }
 .tree .k { color: var(--t-ink3); font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+
+/* Шаги выполнения */
+.steps-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.stbtn { appearance: none; min-width: 34px; min-height: 32px; padding: 3px 9px; border-radius: 8px; border: 1px solid var(--t-line); background: rgba(255, 255, 255, 0.05); color: var(--t-ink); font-size: 13px; font-weight: 700; cursor: pointer; }
+.stbtn:hover:not(:disabled) { border-color: var(--gold); background: rgba(254, 197, 12, 0.12); }
+.stbtn:disabled { opacity: 0.4; cursor: default; }
+.st-play { background: var(--gold); color: var(--gold-ink); border-color: #0a1b2a; }
+.st-play:hover:not(:disabled) { background: var(--gold); filter: brightness(1.08); }
+#stSlider { flex: 1 1 140px; min-width: 100px; accent-color: var(--gold); height: 24px; }
+.st-info { font-family: var(--mono); font-size: 12px; color: var(--t-ink2); white-space: nowrap; }
+.steps-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+.steps-h { margin: 8px 0 6px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t-ink3); font-weight: 800; }
+.st-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; }
+.st-table caption { text-align: left; font-family: var(--sans); font-size: 11.5px; color: var(--t-ink3); padding: 2px 0 3px; font-weight: 700; }
+.st-table th, .st-table td { text-align: left; padding: 3px 8px 3px 0; vertical-align: top; border-bottom: 1px solid var(--t-line); }
+.st-table th { color: var(--c-fn); font-weight: 700; white-space: nowrap; width: 1%; }
+.st-table td { color: var(--t-ink); overflow-wrap: anywhere; }
+.st-table tr.chg td { animation: stChg 0.9s ease-out; }
+@keyframes stChg { 0% { background: rgba(254, 197, 12, 0.45); } 100% { background: transparent; } }
+.st-stack { margin: 0 0 6px; padding-left: 1.3em; font-family: var(--mono); font-size: 12.5px; color: var(--t-ink); line-height: 1.55; }
+.st-stack li:first-child { color: var(--gold); }
+.st-out { margin: 0; padding: 8px 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--t-line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; max-height: 110px; overflow: auto; min-height: 2.2em; }
+@media (max-width: 720px) { .steps-grid { grid-template-columns: minmax(0, 1fr); } }
+.gutter-in div.step { color: var(--gold); font-weight: 800; }

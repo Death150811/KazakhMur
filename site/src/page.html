@@ -140,6 +140,7 @@
                 <button type="button" class="ctab" role="tab" id="tabOut" data-pane="out" aria-controls="consoleBody" aria-selected="true" data-i18n="output">Вывод</button>
                 <button type="button" class="ctab" role="tab" id="tabTokens" data-pane="tokens" aria-controls="labTokens" aria-selected="false" tabindex="-1" data-i18n="tab_tokens">Токены</button>
                 <button type="button" class="ctab" role="tab" id="tabTree" data-pane="tree" aria-controls="labTree" aria-selected="false" tabindex="-1" data-i18n="tab_tree">Дерево</button>
+                <button type="button" class="ctab" role="tab" id="tabSteps" data-pane="steps" aria-controls="labSteps" aria-selected="false" tabindex="-1" data-i18n="tab_steps">Шаги</button>
               </div>
               <span class="status" id="statusChip" hidden></span>
               <span class="meta" id="runMeta"></span>
@@ -147,6 +148,24 @@
             <div class="console-body" id="consoleBody" role="tabpanel" aria-labelledby="tabOut" aria-live="polite"></div>
             <div class="console-body lab" id="labTokens" role="tabpanel" aria-labelledby="tabTokens" tabindex="0" hidden></div>
             <div class="console-body lab" id="labTree" role="tabpanel" aria-labelledby="tabTree" tabindex="0" hidden></div>
+            <div class="console-body lab" id="labSteps" role="tabpanel" aria-labelledby="tabSteps" hidden>
+              <div class="steps-bar" role="group" aria-label="Steps">
+                <button type="button" class="stbtn" id="stFirst" aria-label="⏮">⏮</button>
+                <button type="button" class="stbtn" id="stPrev" aria-label="◀">◀</button>
+                <button type="button" class="stbtn st-play" id="stPlay" data-i18n="steps_play">▶ Авто</button>
+                <button type="button" class="stbtn" id="stNext" aria-label="▶">▶</button>
+                <button type="button" class="stbtn" id="stLast" aria-label="⏭">⏭</button>
+                <input type="range" id="stSlider" min="0" max="0" value="0" aria-label="Step">
+                <span class="st-info" id="stInfo" aria-live="polite"></span>
+                <button type="button" class="stbtn" id="stReload" data-i18n="steps_reload">↻ Заново</button>
+              </div>
+              <p class="lab-note" id="stNote"></p>
+              <div class="steps-grid">
+                <section class="steps-col" aria-labelledby="stVarsT"><h3 id="stVarsT" class="steps-h" data-i18n="steps_vars">Переменные</h3><div id="stVars"></div></section>
+                <section class="steps-col" aria-labelledby="stStackT"><h3 id="stStackT" class="steps-h" data-i18n="steps_stack">Вызовы</h3><ol class="st-stack" id="stStack"></ol>
+                  <h3 class="steps-h" data-i18n="steps_out">Вывод к этому шагу</h3><pre class="st-out" id="stOut"></pre></section>
+              </div>
+            </div>
           </section>
         </div>
       </div>

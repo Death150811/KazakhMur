@@ -84,8 +84,61 @@ function treeOf(source) {
   }
 }
 
+// ---- режим «по шагам»: запись состояния перед каждой инструкцией (для вкладки «Шаги» сайта) ----
+class TraceFull extends Error {}
+function briefValue(v) {
+  if (Array.isArray(v) && v.length > 40) return `тізім[${v.length}] ` + toRepr(v.slice(0, 6)).slice(0, -1) + ', …]';
+  if (v instanceof QTuple && v.items.length > 40) return `кортеж[${v.items.length}] ` + toRepr(new QTuple(v.items.slice(0, 6))).slice(0, -1) + ', …)';
+  if (v instanceof QDict && v.size > 40) return `сөздік[${v.size}]`;
+  if (v instanceof QRange) return toRepr(v);
+  const s = typeof v === 'string' && v.length > 200 ? toRepr(v.slice(0, 200)) : toRepr(v);
+  return s.length > 90 ? s.slice(0, 88) + '…' : s;
+}
+function visibleVars(map) {
+  const out = [];
+  for (const [k, v] of map) {
+    if (v instanceof QFunction || v instanceof QClass || v instanceof Builtin) continue;
+    out.push([k, briefValue(v)]);
+  }
+  return out;
+}
+function traceProgram(source, opts = {}) {
+  const out = [];
+  let outLen = 0;
+  const steps = [];
+  const MAX = opts.maxTraceSteps ?? 2000;
+  const interp = new Interpreter({
+    stdout: (s) => { out.push(s); outLen += s.length; },
+    stdin: opts.stdin || '',
+    limits: { maxSteps: opts.maxSteps ?? 400000, maxDepth: opts.maxDepth ?? 200, timeout: opts.timeout ?? 3, maxOutput: opts.maxOutput ?? 65536 },
+  });
+  const capture = (line, env) => {
+    const locals = new Map();
+    if (env) for (let e = env; e !== null && e !== interp.globals && e !== interp.builtinEnv; e = e.parent)
+      for (const [k, v] of e.vars) if (!locals.has(k)) locals.set(k, v);
+    return { line, out: outLen, frames: interp.frames.map((f) => f.name), locals: visibleVars(locals), globals: visibleVars(interp.globals.vars) };
+  };
+  interp.onStep = (node, env) => {
+    if (steps.length >= MAX) throw new TraceFull();
+    steps.push(capture(node.line, env));
+  };
+  let status = 'ok', error = null, truncated = false;
+  try { interp.runSource(source); }
+  catch (e) {
+    if (e instanceof TraceFull) truncated = true;
+    else if (e instanceof ResourceLimitError) { status = 'limit'; error = errorToDict(e); }
+    else if (e instanceof QazaqError) { status = 'error'; error = errorToDict(e); }
+    else if (isStackOverflow(e)) { status = 'error'; error = { title: QazaqRuntimeError.prototype.title, message: 'Слишком глубокая вложенность выражений или вызовов', line: null, column: null, hint: null, trace: [] }; }
+    else throw e;
+  }
+  if (!truncated) { interp.onStep = null; steps.push({ ...capture(null, null), end: true }); }
+  if (opts.lang === 'kk') error = translateErrorDict(error, 'kk');
+  return { steps, stdout: out.join(''), status, error, truncated };
+}
+
 return {
   version: LANG.version,
+  trace: traceProgram,
   tokens: tokensOf,
   tree: treeOf,
   run: runProgram,

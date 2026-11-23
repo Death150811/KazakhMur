@@ -27,6 +27,9 @@ const I18N = {
     lead: 'Пишите код по-казахски и запускайте его прямо здесь. Без установки и без сервера.',
     fact1: 'Точка завершает инструкцию', fact2: 'Казахские буквы везде: ә ғ қ ң ө ұ ү һ і', fact3: 'Работает в браузере, результат мгновенный',
     cta_tour: 'Тур по языку', cta_lib: 'Все функции',
+    tab_steps: 'Шаги', steps_play: '▶ Авто', steps_pause: '❚❚ Пауза', steps_reload: '↻ Заново', steps_vars: 'Переменные', steps_stack: 'Вызовы', steps_out: 'Вывод к этому шагу',
+    steps_note: 'Выполнение по шагам: золотая полоса в редакторе показывает строку, которая выполнится следующей. Таблица — значения переменных до этого шага.',
+    steps_info: 'шаг {i} из {n}', steps_line: 'строка {line}', steps_end: 'программа завершена', steps_full: 'Показаны только первые {n} шагов.', steps_stale: 'Код изменён — нажмите «Заново».', steps_locals: 'в функции', steps_globals: 'глобальные', steps_novars: 'переменных пока нет', steps_top: 'главная программа',
     tab_tokens: 'Токены', tab_tree: 'Дерево', tokens_note: 'Токены — «слова», на которые лексер режет программу. Нажмите на токен — он выделится в редакторе.', tree_note: 'Дерево разбора (AST): так парсер понял программу. Каждый узел — действие, вложенные узлы — его части.', lab_empty: 'Введите код в редакторе.', lab_err: 'Код нельзя разобрать:', lab_more: 'Показаны первые {n} токенов.',
     nav_book: 'Книга', book_kicker: 'Книга', book_title: 'Как это сделано — простыми словами',
     book_sub: 'Каждая глава рассказана трижды: для ребёнка, подробнее и применительно к этому проекту. Подчёркнутые слова — термины: нажмите, и появится пояснение.',
@@ -69,6 +72,9 @@ const I18N = {
     lead: 'Кодты қазақша жазыңыз да, дәл осы жерде іске қосыңыз. Орнату да, сервер де қажет емес.',
     fact1: 'Нүкте нұсқауды аяқтайды', fact2: 'Қазақ әріптері барлық жерде: ә ғ қ ң ө ұ ү һ і', fact3: 'Браузерде жұмыс істейді, нәтиже лезде шығады',
     cta_tour: 'Тілге шолу', cta_lib: 'Барлық функциялар',
+    tab_steps: 'Қадамдар', steps_play: '▶ Авто', steps_pause: '❚❚ Үзіліс', steps_reload: '↻ Қайта', steps_vars: 'Айнымалылар', steps_stack: 'Шақырулар', steps_out: 'Осы қадамға дейінгі шығыс',
+    steps_note: 'Қадамдап орындау: редактордағы алтын жолақ келесі орындалатын жолды көрсетеді. Кесте — осы қадамға дейінгі айнымалы мәндері.',
+    steps_info: '{n} қадамның {i}-і', steps_line: '{line}-жол', steps_end: 'бағдарлама аяқталды', steps_full: 'Тек алғашқы {n} қадам көрсетілген.', steps_stale: 'Код өзгерді — «Қайта» түймесін басыңыз.', steps_locals: 'функцияда', steps_globals: 'жаһандық', steps_novars: 'әзірге айнымалы жоқ', steps_top: 'басты бағдарлама',
     tab_tokens: 'Токендер', tab_tree: 'Ағаш', tokens_note: 'Токендер — лексер бағдарламаны бөлетін «сөздер». Токенді басыңыз — ол редакторда белгіленеді.', tree_note: 'Талдау ағашы (AST): парсер бағдарламаны осылай түсінді. Әр түйін — әрекет, ішкі түйіндер — оның бөліктері.', lab_empty: 'Редакторға код енгізіңіз.', lab_err: 'Кодты талдау мүмкін емес:', lab_more: 'Алғашқы {n} токен көрсетілген.',
     nav_book: 'Кітап', book_kicker: 'Кітап', book_title: 'Бұл қалай жасалған — қарапайым сөзбен',
     book_sub: 'Әр тарау үш рет айтылады: бала үшін, толығырақ және осы жоба бойынша. Сызылған сөздер — терминдер: басыңыз, түсіндірме шығады. (Кітап мәтіні орыс тілінде.)',
@@ -328,9 +334,9 @@ function renderEditor() {
   const text = ta.value;
   const lines = toLines(tokenize(text), state.err);
   const curLine = text.slice(0, ta.selectionStart).split('\n').length;
-  hlCode.innerHTML = lines.map((h, i) => `<span class="ln${state.err && state.err.line === i + 1 ? ' err' : ''}">${h}</span>`).join('');
+  hlCode.innerHTML = lines.map((h, i) => `<span class="ln${state.err && state.err.line === i + 1 ? ' err' : ''}${state.stepLine === i + 1 ? ' step' : ''}">${h}</span>`).join('');
   if (lines.length !== ed.lines || true) {
-    gutterIn.innerHTML = lines.map((_, i) => `<div class="${state.err && state.err.line === i + 1 ? 'err' : i + 1 === curLine ? 'cur' : ''}">${i + 1}</div>`).join('');
+    gutterIn.innerHTML = lines.map((_, i) => `<div class="${state.err && state.err.line === i + 1 ? 'err' : state.stepLine === i + 1 ? 'step' : i + 1 === curLine ? 'cur' : ''}">${i + 1}</div>`).join('');
     ed.lines = lines.length;
   }
   syncScroll();
@@ -1095,12 +1101,19 @@ function setLabPane(pane, focus) {
   $('#consoleBody').hidden = pane !== 'out';
   $('#labTokens').hidden = pane !== 'tokens';
   $('#labTree').hidden = pane !== 'tree';
+  $('#labSteps').hidden = pane !== 'steps';
+  if (pane !== 'steps') leaveSteps();
   renderLab();
 }
-function scheduleLab() { if (labPane === 'out') return; clearTimeout(labTimer); labTimer = setTimeout(renderLab, 250); }
+function scheduleLab() {
+  if (labPane === 'out') return;
+  if (labPane === 'steps') { if (steps.data) $('#stNote').textContent = steps.code !== ta.value ? t('steps_stale') : $('#stNote').textContent; return; }
+  clearTimeout(labTimer); labTimer = setTimeout(renderLab, 250);
+}
 function renderLab() {
   if (labPane === 'tokens') renderTokens();
   else if (labPane === 'tree') renderTree();
+  else if (labPane === 'steps') enterSteps();
 }
 function labError(host, err) {
   const e = engine.translateError(err, msgLang());
@@ -1173,6 +1186,80 @@ $$('#ctabs .ctab').forEach((b) => {
     if (e.key === 'ArrowRight') { e.preventDefault(); setLabPane(tabs[(i + 1) % tabs.length].dataset.pane, true); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); setLabPane(tabs[(i + tabs.length - 1) % tabs.length].dataset.pane, true); }
   });
+});
+
+// Шаги выполнения: пошаговый просмотр программы (состояние перед каждой инструкцией)
+const steps = { data: null, i: 0, code: '', timer: null };
+function stopPlay() { clearInterval(steps.timer); steps.timer = null; $('#stPlay').textContent = t('steps_play'); }
+function leaveSteps() {
+  stopPlay();
+  if (state.stepLine != null) { state.stepLine = null; renderEditor(); }
+}
+function enterSteps() {
+  // трассировка строится при открытии вкладки и по кнопке «Заново»; при правке кода — только пометка «устарело»
+  if (!steps.data || steps.code !== ta.value) { runTrace(); return; }
+  $('#stNote').textContent = steps.data.truncated ? t('steps_full', { n: steps.data.steps.length }) : t('steps_note');
+  showStep(steps.i);
+}
+function runTrace() {
+  stopPlay();
+  const code = ta.value;
+  steps.code = code;
+  steps.data = engine.trace(code, { stdin: $('#stdinArea').value, lang: msgLang() });
+  steps.i = 0;
+  const n = steps.data.steps.length;
+  $('#stSlider').max = String(Math.max(n - 1, 0));
+  $('#stNote').textContent = steps.data.truncated ? t('steps_full', { n }) : t('steps_note');
+  showStep(0);
+}
+function varsTable(caption, list, prev) {
+  if (!list.length) return '';
+  const prevMap = new Map(prev || []);
+  return `<table class="st-table"><caption>${esc(caption)}</caption><tbody>` + list.map(([k, v]) =>
+    `<tr${prevMap.has(k) && prevMap.get(k) !== v || (prev && !prevMap.has(k)) ? ' class="chg"' : ''}><th scope="row">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('') + '</tbody></table>';
+}
+function showStep(i) {
+  const d = steps.data;
+  if (!d || !d.steps.length) { $('#stVars').innerHTML = ''; $('#stInfo').textContent = ''; return; }
+  i = Math.max(0, Math.min(i, d.steps.length - 1));
+  steps.i = i;
+  const st = d.steps[i], prev = i > 0 ? d.steps[i - 1] : null;
+  $('#stSlider').value = String(i);
+  $('#stInfo').textContent = t('steps_info', { i: i + 1, n: d.steps.length }) + ' · ' + (st.end ? t('steps_end') : t('steps_line', { line: st.line }));
+  $('#stFirst').disabled = $('#stPrev').disabled = i === 0;
+  $('#stNext').disabled = $('#stLast').disabled = i === d.steps.length - 1;
+  let html = '';
+  if (st.locals.length) html += varsTable(t('steps_locals') + ' ' + (st.frames[st.frames.length - 1] || '') + '()', st.locals, prev && prev.frames.length === st.frames.length ? prev.locals : null);
+  html += varsTable(t('steps_globals'), st.globals, prev ? prev.globals : null);
+  $('#stVars').innerHTML = html || `<p class="empty">${esc(t('steps_novars'))}</p>`;
+  const stack = [...st.frames].reverse().map((f) => `<li>${esc(f)}()</li>`);
+  stack.push(`<li>${esc(t('steps_top'))}</li>`);
+  $('#stStack').innerHTML = stack.join('');
+  $('#stOut').textContent = d.stdout.slice(0, st.end ? d.stdout.length : st.out);
+  if (st.end && d.error) $('#stOut').textContent += '\n' + (engine.translateError(d.error, msgLang()).title) + ': ' + engine.translateError(d.error, msgLang()).message;
+  state.stepLine = st.end ? null : st.line;
+  renderEditor();
+  if (state.stepLine) {
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
+    const top = (state.stepLine - 1) * lh;
+    if (top < ta.scrollTop || top + lh * 2 > ta.scrollTop + ta.clientHeight) { ta.scrollTop = Math.max(0, top - ta.clientHeight / 3); syncScroll(); }
+  }
+}
+$('#stFirst').addEventListener('click', () => { stopPlay(); showStep(0); });
+$('#stPrev').addEventListener('click', () => { stopPlay(); showStep(steps.i - 1); });
+$('#stNext').addEventListener('click', () => { stopPlay(); showStep(steps.i + 1); });
+$('#stLast').addEventListener('click', () => { stopPlay(); showStep((steps.data ? steps.data.steps.length : 1) - 1); });
+$('#stSlider').addEventListener('input', (e) => { stopPlay(); showStep(Number(e.target.value)); });
+$('#stReload').addEventListener('click', runTrace);
+$('#stPlay').addEventListener('click', () => {
+  if (steps.timer) { stopPlay(); return; }
+  if (!steps.data) return;
+  if (steps.i >= steps.data.steps.length - 1) showStep(0);
+  $('#stPlay').textContent = t('steps_pause');
+  steps.timer = setInterval(() => {
+    if (steps.i >= steps.data.steps.length - 1) { stopPlay(); return; }
+    showStep(steps.i + 1);
+  }, state.motionOff ? 400 : 650);
 });
 
 // ---------------------------------------------------------------------------

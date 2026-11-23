@@ -152,6 +152,26 @@ const offline = async (page) => page.route('**/*', (r) => {
   await page.waitForFunction(() => /Код нельзя разобрать|Кодты талдау/.test(document.querySelector('#labTree').textContent));
   await page.click('#tabOut');
 
+  if (process.env.E2E_VERBOSE) console.log('шаг 11e: выполнение по шагам');
+  // 11e. вкладка «Шаги»: пошаговый просмотр, подсветка строки, переменные и вывод
+  await page.evaluate((c) => window.__qazaq.setCode(c), 'функ ф(n):\n    қайтар n * 2.\nайным а = 1.\nа = ф(а).\nжаз(а).');
+  await page.click('#tabSteps');
+  await page.waitForSelector('#stVars .st-table, #stVars .empty');
+  assert.match(await page.textContent('#stInfo'), /1/);
+  assert.strictEqual(await page.$$eval('#hlCode .ln.step', (e) => e.length), 1);
+  await page.click('#stLast');
+  assert.match(await page.textContent('#stOut'), /2/);
+  assert.match(await page.textContent('#stVars'), /а/);
+  await page.click('#stFirst');
+  await page.click('#stNext');
+  await page.click('#stNext');
+  await page.click('#stNext');
+  // внутри функции: в стеке есть ф()
+  assert.match(await page.textContent('#stStack'), /ф\(\)/);
+  assert.strictEqual(await page.$$eval('#hlCode .ln.step', (e) => e.length), 1);
+  await page.click('#tabOut');
+  assert.strictEqual(await page.$$eval('#hlCode .ln.step', (e) => e.length), 0);
+
   if (process.env.E2E_VERBOSE) console.log('шаг 11d: книга: термины и главы');
   // 11d. книга открывается по адресу, термин показывает пояснение и закрывается по Esc
   await page.goto(URL + '#book/lexer');
