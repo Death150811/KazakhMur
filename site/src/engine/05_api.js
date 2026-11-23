@@ -3,6 +3,10 @@ for (const b of LANG.builtins) {
   if (!BUILTINS.has(b.name)) throw new Error('Не реализована встроенная функция: ' + b.name);
   for (const a of b.aliases || []) BUILTINS.set(a, BUILTINS.get(b.name));
 }
+for (const b of LANG.builtins) {
+  const have = BUILTINS.get(b.name).kw;
+  if (JSON.stringify(have || []) !== JSON.stringify(b.kw || [])) throw new Error('Имена параметров не совпадают с Python: ' + b.name);
+}
 for (const m of LANG.methods) {
   if (!Object.values(METHODS).some((t) => m in t)) throw new Error('Не реализован метод: ' + m);
 }

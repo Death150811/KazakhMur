@@ -66,6 +66,13 @@ class Compare(Node):
 class Call(Node):
     func: Node
     args: list
+    kwargs: list = field(default_factory=list)  # [(имя, выражение)] — именованные аргументы
+
+
+@dataclass(slots=True)
+class Lambda(Node):
+    params: list  # [Param]
+    body: Node
 
 
 @dataclass(slots=True)

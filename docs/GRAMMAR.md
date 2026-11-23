@@ -95,10 +95,12 @@ mul         = unary , { ( "*" | "/" | "//" | "%" ) , unary } ;
 unary       = ( "-" | "+" ) , unary | power ;
 power       = postfix , [ "**" , unary ] ;       (* правоассоциативно *)
 postfix     = primary , { call | index | DOT NAME } ;
-call        = "(" , [ expr , { "," , expr } , [ "," ] ] , ")" ;
+call        = "(" , [ arg , { "," , arg } , [ "," ] ] , ")" ;
+arg         = expr | NAME , "=" , expr ;     (* именованные аргументы идут после обычных; имена не повторяются *)
 index       = "[" , ( expr | slice ) , "]" ;
 slice       = [ expr ] , ":" , [ expr ] , [ ":" , [ expr ] ] ;
 primary     = INT | FLOAT | STR | FSTR | NAME | "ақиқат" | "жалған" | "бос"
+            | "функ" , "(" , [ params ] , ")" , ":" , expr     (* анонимная функция; тело в той же строке *)
             | "(" , expr , ")"
             | "[" , [ expr , { "," , expr } , [ "," ] ] , "]"
             | "{" , [ pair , { "," , pair } , [ "," ] ] , "}" ;

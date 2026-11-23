@@ -100,7 +100,8 @@ const LANG_BUILTINS = new Map(LANG.builtins.map((b) => [b.name, b]));
 function def(name, minArgs, maxArgs, fn) {
   const meta = LANG_BUILTINS.get(name);
   if (!meta) throw new Error('Нет описания встроенной функции в language.json: ' + name);
-  BUILTINS.set(name, new Builtin(name, fn, minArgs, maxArgs, meta.category, meta.signature, meta.doc, !!meta.unsafe));
+  BUILTINS.set(name, new Builtin(name, fn, minArgs, maxArgs, meta.category, meta.signature, meta.doc, !!meta.unsafe,
+                                 meta.kw && meta.kw.length ? meta.kw : null));
 }
 
 const METHODS = { str: {}, list: {}, dict: {} };

@@ -467,3 +467,34 @@ def test_big_integers_print_and_limits():
     e = run_err("айным x = 10 ** 1000.\nәрбір i ішінде аралық(40):\n    x = x * x.")
     assert "слишком велик" in e.message
     assert "слишком велик" in run_err("жаз(10 ** 400000).").message
+
+
+def test_lambda_basics_and_closures():
+    assert run("айным екі = функ(x): x * 2.\nжаз(екі(4), бейнеле(функ(x): x + 1, [1, 2])).") == "8 [2, 3]\n"
+    assert run("жаз((функ(x): функ(y): x + y)(1)(2)).") == "3\n"
+    assert run("айным n = 10.\nайным ф = функ(a, b = n): a + b.\nn = 100.\nжаз(ф(1)).") == "101\n"
+    assert run("жаз(түр(функ(x): x)).") == "функция\n"
+
+
+def test_lambda_errors():
+    assert "в той же строке" in run_err("айным ф = функ(x):\n    x.").message
+    e = run_err("айным бөл = функ(a, b): a / b.\nжаз(бөл(1, 0)).")
+    assert [n for n, _ in e.trace] == ["<лямбда>"]
+
+
+def test_named_arguments():
+    src = "функ f(a, b = 10, c = 100):\n    қайтар [a, b, c].\nжаз(f(1), f(1, c = 5), f(c = 1, a = 2, b = 3))."
+    assert run(src) == "[1, 10, 100] [1, 10, 5] [2, 3, 1]\n"
+    assert run('жаз(сұрып([3, 1, 2], кері = ақиқат), қосынды([1, 2], бастау = 10)).') == "[3, 2, 1] 13\n"
+    assert run("сынып A:\n    функ жасау(өзі, x, y = 0):\n        өзі.x = x.\n        өзі.y = y.\n"
+               "айным а = A(1, y = 5).\nжаз(а.x, а.y).") == "1 5\n"
+
+
+def test_named_argument_errors():
+    base = "функ f(a, b):\n    қайтар a.\n"
+    assert "дважды" in run_err(base + "f(1, a = 2).").message
+    assert "нет параметра" in run_err(base + "f(z = 1).").message
+    assert "не получила" in run_err(base + "f(a = 1).").message
+    assert "не принимает именованные" in run_err("жаз(x = 1).").message
+    assert "Позиционный аргумент после" in run_err(base + "f(a = 1, 2).").message
+    assert "Повторяющийся" in run_err(base + "f(a = 1, a = 2).").message

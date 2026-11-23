@@ -13,10 +13,10 @@ CATEGORIES = ("core", "math", "data", "science", "ai", "io")
 
 
 def builtin(name: str, min_args: int = 0, max_args: int | None = None, *, category: str = "core",
-            sig: str = "", doc: str = "", unsafe: bool = False):
+            sig: str = "", doc: str = "", unsafe: bool = False, kw: tuple | None = None):
     def deco(fn):
         BUILTINS[name] = Builtin(name, fn, min_args, max_args, category, sig or f"{name}(…)",
-                                 doc, unsafe)
+                                 doc, unsafe, kw)
         return fn
     return deco
 

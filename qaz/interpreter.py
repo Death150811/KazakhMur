@@ -33,6 +33,9 @@ class Limits:
     max_output: int | None = None  # символов
 
 
+_MISSING = object()
+
+
 class _Return(Exception):
     def __init__(self, value):
         self.value = value
@@ -80,7 +83,7 @@ class Interpreter:
             A.ListLit: self.e_list, A.DictLit: self.e_dict, A.Unary: self.e_unary,
             A.Binary: self.e_binary, A.Logical: self.e_logical, A.Compare: self.e_compare,
             A.Call: self.e_call, A.Index: self.e_index, A.Slice: self.e_slice,
-            A.Attr: self.e_attr,
+            A.Attr: self.e_attr, A.Lambda: self.e_lambda,
         }
 
     # ------------------------------------------------------------------
@@ -558,28 +561,60 @@ class Interpreter:
         return self.get_attr(self.evaluate(node.obj, env), node.name)
 
     # ---- вызовы ---------------------------------------------------------
+    def e_lambda(self, node: A.Lambda, env: Env):
+        body = [A.Return(node.body, line=node.body.line, col=node.body.col)]
+        return QFunction("<лямбда>", node.params, body, env)
+
     def e_call(self, node: A.Call, env: Env):
         fn = self.evaluate(node.func, env)
         args = [self.evaluate(a, env) for a in node.args]
-        return self.call_value(fn, args, node.line)
+        kwargs = {name: self.evaluate(expr, env) for name, expr in node.kwargs} if node.kwargs else None
+        return self.call_value(fn, args, node.line, kwargs)
 
-    def call_value(self, fn, args: list, line: int | None = None):
+    def call_value(self, fn, args: list, line: int | None = None, kwargs: dict | None = None):
         if isinstance(fn, QFunction):
-            return self.call_function(fn, args, line)
+            return self.call_function(fn, args, line, kwargs)
         if isinstance(fn, BoundMethod):
-            return self.call_function(fn.func, [fn.receiver] + args, line)
+            return self.call_function(fn.func, [fn.receiver] + args, line, kwargs)
         if isinstance(fn, Builtin):
             if fn.unsafe and self.safe:
                 raise QazaqRuntimeError(
                     f"Функция «{fn.name}» недоступна в безопасном режиме (Playground)")
+            if kwargs:
+                args = self._bind_builtin_kwargs(fn, args, kwargs)
             self._arity(fn.name, len(args), fn.min_args, fn.max_args)
             return self._call_native(fn.name, fn.fn, (self, *args))
         if isinstance(fn, BoundBuiltin):
+            if kwargs:
+                raise QazaqRuntimeError(f"Метод «{fn.name}» не принимает именованные аргументы")
             self._arity("." + fn.name, len(args), fn.min_args, fn.max_args)
             return self._call_native(fn.name, fn.fn, (self, fn.receiver, *args))
         if isinstance(fn, QClass):
-            return self.instantiate(fn, args, line)
+            return self.instantiate(fn, args, line, kwargs)
         raise QazaqRuntimeError(f"Значение типа {type_name(fn)} нельзя вызвать как функцию")
+
+    @staticmethod
+    def _bind_builtin_kwargs(fn: Builtin, args: list, kwargs: dict) -> list:
+        if not fn.kw:
+            raise QazaqRuntimeError(
+                f"Функция «{fn.name}» не принимает именованные аргументы",
+                hint="Для сравнения используйте '==', а аргументы передавайте по порядку.")
+        slots = list(args)
+        for name, value in kwargs.items():
+            if name not in fn.kw:
+                raise QazaqRuntimeError(f"У функции «{fn.name}» нет параметра «{name}»",
+                                        hint="Параметры: " + ", ".join(fn.kw))
+            idx = fn.kw.index(name)
+            if idx < len(args):
+                raise QazaqRuntimeError(f"Параметр «{name}» функции «{fn.name}» получил значение дважды")
+            while len(slots) <= idx:
+                slots.append(_MISSING)
+            slots[idx] = value
+        for i, v in enumerate(slots):
+            if v is _MISSING:
+                raise QazaqRuntimeError(
+                    f"Функция «{fn.name}» не получила значение параметра «{fn.kw[i]}»")
+        return slots
 
     def _call_native(self, name: str, fn, args: tuple):
         self._tick()
@@ -604,9 +639,9 @@ class Interpreter:
             raise QazaqRuntimeError(
                 f"«{name}» ожидает аргументов: {want}, получено: {given}")
 
-    def call_function(self, fn: QFunction, args: list, line: int | None):
+    def call_function(self, fn: QFunction, args: list, line: int | None, kwargs: dict | None = None):
         n, params = len(args), fn.params
-        if n < fn.min_args or n > len(params):
+        if n > len(params) or (not kwargs and n < fn.min_args):
             self._arity(fn.name, n, fn.min_args, len(params))
         if self.depth >= self.limits.max_depth:
             raise QazaqRuntimeError(
@@ -614,8 +649,25 @@ class Interpreter:
                 hint="Проверьте условие выхода из рекурсии.")
         local = Env(fn.closure)
         vars_ = local.vars
-        for i, p in enumerate(params):
-            vars_[p.name] = args[i] if i < n else self.evaluate(p.default, fn.closure)
+        for i in range(min(n, len(params))):
+            vars_[params[i].name] = args[i]
+        if kwargs:
+            names = [p.name for p in params]
+            for key, value in kwargs.items():
+                if key not in names:
+                    raise QazaqRuntimeError(
+                        f"У функции «{fn.name}» нет параметра «{key}»",
+                        hint="Параметры: " + (", ".join(names) if names else "нет"))
+                if key in vars_:
+                    raise QazaqRuntimeError(
+                        f"Параметр «{key}» функции «{fn.name}» получил значение дважды")
+                vars_[key] = value
+        for p in params:
+            if p.name not in vars_:
+                if p.default is None:
+                    raise QazaqRuntimeError(
+                        f"Функция «{fn.name}» не получила значение параметра «{p.name}»")
+                vars_[p.name] = self.evaluate(p.default, fn.closure)
         self.depth += 1
         self._tick()
         try:
@@ -629,15 +681,15 @@ class Interpreter:
             self.depth -= 1
         return None
 
-    def instantiate(self, cls: QClass, args: list, line: int | None):
+    def instantiate(self, cls: QClass, args: list, line: int | None, kwargs: dict | None = None):
         inst = QInstance(cls)
         try:
             init = cls.find("жасау")
         except KeyError:
             init = None
         if isinstance(init, QFunction):
-            self.call_function(init, [inst] + args, line)
-        elif args:
+            self.call_function(init, [inst] + args, line, kwargs)
+        elif args or kwargs:
             raise QazaqRuntimeError(
                 f"Класс «{cls.name}» не принимает аргументы: в нём нет метода «жасау»",
                 hint="Конструктор объявляется так: функ жасау(өзі, …):")

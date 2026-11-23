@@ -42,9 +42,10 @@ class QFunction {
     this.minArgs = params.filter((p) => p.default === null).length; }
 }
 class Builtin {
-  constructor(name, fn, minArgs, maxArgs, category, sig, doc, unsafe) {
+  constructor(name, fn, minArgs, maxArgs, category, sig, doc, unsafe, kw = null) {
     this.name = name; this.fn = fn; this.minArgs = minArgs; this.maxArgs = maxArgs;
     this.category = category; this.sig = sig; this.doc = doc; this.unsafe = unsafe;
+    this.kw = kw;   // имена параметров для именованных аргументов или null
   }
 }
 class BoundBuiltin { constructor(name, fn, receiver, minArgs, maxArgs) { Object.assign(this, { name, fn, receiver, minArgs, maxArgs }); } }

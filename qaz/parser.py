@@ -267,10 +267,8 @@ class Parser:
             self.loop_depth -= 1
         return A.For(targets, iterable, body, line=kw.line, col=kw.col)
 
-    def parse_funcdef(self):
-        kw = self.advance()
-        name = self.expect(NAME, what="имя функции")
-        self.expect(OP, "(", what="'(' после имени функции")
+    def parse_params(self) -> list:
+        """Параметры функции или лямбды: a, b = 5, c = a"""
         params: list[A.Param] = []
         seen_default = False
         while not self.check(OP, ")"):
@@ -287,6 +285,13 @@ class Parser:
             params.append(A.Param(pname.value, default))
             if not self.match(OP, ","):
                 break
+        return params
+
+    def parse_funcdef(self):
+        kw = self.advance()
+        name = self.expect(NAME, what="имя функции")
+        self.expect(OP, "(", what="'(' после имени функции")
+        params = self.parse_params()
         self.expect(OP, ")", what="')' после параметров")
         self.expect(OP, ":", what="двоеточие ':' после заголовка функции")
         saved_loop, self.loop_depth = self.loop_depth, 0
@@ -297,6 +302,19 @@ class Parser:
             self.func_depth -= 1
             self.loop_depth = saved_loop
         return A.FuncDef(name.value, params, body, line=kw.line, col=kw.col)
+
+    def parse_lambda(self):
+        """Анонимная функция: функ(x): x * 2 — тело (одно выражение) в той же строке."""
+        kw = self.advance()
+        self.expect(OP, "(", what="'(' после «функ» в анонимной функции")
+        params = self.parse_params()
+        self.expect(OP, ")", what="')' после параметров")
+        self.expect(OP, ":", what="двоеточие ':' после параметров анонимной функции")
+        if self.check(NL):
+            self.error("Тело анонимной функции должно быть в той же строке после ':'", self.peek(),
+                       hint="Для многострочной функции используйте: функ имя(…):")
+        body = self.parse_expr()
+        return A.Lambda(params, body, line=kw.line, col=kw.col)
 
     def parse_classdef(self):
         kw = self.advance()
@@ -430,13 +448,23 @@ class Parser:
             t = self.peek()
             if t.kind == OP and t.value == "(":
                 self.advance()
-                args = []
+                args, kwargs = [], []
                 while not self.check(OP, ")"):
-                    args.append(self.parse_expr())
+                    if self.check(NAME) and self.check(OP, "=", 1):
+                        name = self.advance()
+                        self.advance()
+                        if any(n == name.value for n, _ in kwargs):
+                            self.error(f"Повторяющийся именованный аргумент «{name.value}»", name)
+                        kwargs.append((name.value, self.parse_expr()))
+                    else:
+                        if kwargs:
+                            self.error("Позиционный аргумент после именованного",
+                                       hint="Сначала пишите обычные аргументы, затем именованные: f(1, b = 2).")
+                        args.append(self.parse_expr())
                     if not self.match(OP, ","):
                         break
                 self.expect(OP, ")", what="')' после аргументов")
-                expr = A.Call(expr, args, line=t.line, col=t.col)
+                expr = A.Call(expr, args, kwargs, line=t.line, col=t.col)
             elif t.kind == OP and t.value == "[":
                 self.advance()
                 expr = self.parse_subscript(expr, t)
@@ -476,6 +504,8 @@ class Parser:
             self.advance()
             return A.Name(t.value, line=t.line, col=t.col)
         if t.kind == KW:
+            if t.value == "функ":
+                return self.parse_lambda()
             if t.value == "ақиқат":
                 self.advance()
                 return A.Literal(True, line=t.line, col=t.col)

@@ -229,6 +229,7 @@ class Interpreter {
         case 'DictLit': return this.eDict(node, env);
         case 'FString': return this.eFstring(node, env);
         case 'Slice': return this.eSlice(node, env);
+        case 'Lambda': return new QFunction('<лямбда>', node.params, [{ t: 'Return', line: node.body.line, col: node.body.col, value: node.body }], env);
         default: throw new Error('unknown expression ' + node.t);
       }
     } catch (exc) {
@@ -479,23 +480,43 @@ class Interpreter {
   eCall(node, env) {
     const fn = this.evaluate(node.func, env);
     const args = node.args.map((a) => this.evaluate(a, env));
-    return this.callValue(fn, args, node.line);
+    let kwargs = null;
+    if (node.kwargs.length) { kwargs = new Map(); for (const [name, expr] of node.kwargs) kwargs.set(name, this.evaluate(expr, env)); }
+    return this.callValue(fn, args, node.line, kwargs);
   }
 
-  callValue(fn, args, line = null) {
-    if (fn instanceof QFunction) return this.callFunction(fn, args, line);
-    if (fn instanceof BoundMethod) return this.callFunction(fn.func, [fn.receiver, ...args], line);
+  callValue(fn, args, line = null, kwargs = null) {
+    if (fn instanceof QFunction) return this.callFunction(fn, args, line, kwargs);
+    if (fn instanceof BoundMethod) return this.callFunction(fn.func, [fn.receiver, ...args], line, kwargs);
     if (fn instanceof Builtin) {
       if (fn.unsafe && this.safe) throw rtError(`Функция «${fn.name}» недоступна в безопасном режиме (Playground)`);
+      if (kwargs) args = this.bindBuiltinKwargs(fn, args, kwargs);
       this.arity(fn.name, args.length, fn.minArgs, fn.maxArgs);
       return this.callNative(fn.name, fn.fn, [this, ...args]);
     }
     if (fn instanceof BoundBuiltin) {
+      if (kwargs) throw rtError(`Метод «${fn.name}» не принимает именованные аргументы`);
       this.arity('.' + fn.name, args.length, fn.minArgs, fn.maxArgs);
       return this.callNative(fn.name, fn.fn, [this, fn.receiver, ...args]);
     }
-    if (fn instanceof QClass) return this.instantiate(fn, args, line);
+    if (fn instanceof QClass) return this.instantiate(fn, args, line, kwargs);
     throw rtError(`Значение типа ${typeName(fn)} нельзя вызвать как функцию`);
+  }
+
+  bindBuiltinKwargs(fn, args, kwargs) {
+    if (!fn.kw) throw rtError(`Функция «${fn.name}» не принимает именованные аргументы`,
+                              "Для сравнения используйте '==', а аргументы передавайте по порядку.");
+    const slots = args.slice();
+    const MISSING = {};
+    for (const [name, value] of kwargs) {
+      const idx = fn.kw.indexOf(name);
+      if (idx < 0) throw rtError(`У функции «${fn.name}» нет параметра «${name}»`, 'Параметры: ' + fn.kw.join(', '));
+      if (idx < args.length) throw rtError(`Параметр «${name}» функции «${fn.name}» получил значение дважды`);
+      while (slots.length <= idx) slots.push(MISSING);
+      slots[idx] = value;
+    }
+    slots.forEach((v, i) => { if (v === MISSING) throw rtError(`Функция «${fn.name}» не получила значение параметра «${fn.kw[i]}»`); });
+    return slots;
   }
 
   callNative(name, fn, args) {
@@ -520,14 +541,29 @@ class Interpreter {
     }
   }
 
-  callFunction(fn, args, line) {
+  callFunction(fn, args, line, kwargs = null) {
     const n = args.length, params = fn.params;
-    if (n < fn.minArgs || n > params.length) this.arity(fn.name, n, fn.minArgs, params.length);
+    if (n > params.length || (!kwargs && n < fn.minArgs)) this.arity(fn.name, n, fn.minArgs, params.length);
     if (this.depth >= this.limits.maxDepth)
       throw rtError(`Превышена максимальная глубина вызовов (${this.limits.maxDepth})`, 'Проверьте условие выхода из рекурсии.');
     const local = new Env(fn.closure);
-    for (let i = 0; i < params.length; i++)
-      local.vars.set(params[i].name, i < n ? args[i] : this.evaluate(params[i].default, fn.closure));
+    const vars = local.vars;
+    for (let i = 0; i < Math.min(n, params.length); i++) vars.set(params[i].name, args[i]);
+    if (kwargs) {
+      const names = params.map((p) => p.name);
+      for (const [key, value] of kwargs) {
+        if (!names.includes(key))
+          throw rtError(`У функции «${fn.name}» нет параметра «${key}»`, 'Параметры: ' + (names.length ? names.join(', ') : 'нет'));
+        if (vars.has(key)) throw rtError(`Параметр «${key}» функции «${fn.name}» получил значение дважды`);
+        vars.set(key, value);
+      }
+    }
+    for (const p of params) {
+      if (!vars.has(p.name)) {
+        if (p.default === null) throw rtError(`Функция «${fn.name}» не получила значение параметра «${p.name}»`);
+        vars.set(p.name, this.evaluate(p.default, fn.closure));
+      }
+    }
     this.depth++;
     this.tick();
     try { this.runBlock(fn.body, local); }
@@ -539,11 +575,11 @@ class Interpreter {
     return null;
   }
 
-  instantiate(cls, args, line) {
+  instantiate(cls, args, line, kwargs = null) {
     const inst = new QInstance(cls);
     const init = cls.find('жасау');
-    if (init instanceof QFunction) this.callFunction(init, [inst, ...args], line);
-    else if (args.length)
+    if (init instanceof QFunction) this.callFunction(init, [inst, ...args], line, kwargs);
+    else if (args.length || kwargs)
       throw rtError(`Класс «${cls.name}» не принимает аргументы: в нём нет метода «жасау»`,
                     'Конструктор объявляется так: функ жасау(өзі, …):');
     return inst;

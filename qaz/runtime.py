@@ -73,6 +73,7 @@ class Builtin:
     sig: str = ""
     doc: str = ""
     unsafe: bool = False  # недоступна в безопасном режиме (Playground)
+    kw: tuple | None = None  # имена параметров, если функция принимает именованные аргументы
 
 
 @dataclass(eq=False)

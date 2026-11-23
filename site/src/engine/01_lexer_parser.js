@@ -584,10 +584,7 @@ class Parser {
     return mk('For', kw, { targets, iterable, body });
   }
 
-  parseFuncdef() {
-    const kw = this.advance();
-    const name = this.expect(T.NAME, undefined, 'имя функции');
-    this.expect(T.OP, '(', "'(' после имени функции");
+  parseParams() {
     const params = [];
     let seenDefault = false;
     while (!this.check(T.OP, ')')) {
@@ -599,6 +596,14 @@ class Parser {
       params.push({ name: pname.value, default: def });
       if (!this.match(T.OP, ',')) break;
     }
+    return params;
+  }
+
+  parseFuncdef() {
+    const kw = this.advance();
+    const name = this.expect(T.NAME, undefined, 'имя функции');
+    this.expect(T.OP, '(', "'(' после имени функции");
+    const params = this.parseParams();
     this.expect(T.OP, ')', "')' после параметров");
     this.expect(T.OP, ':', "двоеточие ':' после заголовка функции");
     const savedLoop = this.loopDepth;
@@ -607,6 +612,18 @@ class Parser {
     let body;
     try { body = this.parseBlock(); } finally { this.funcDepth--; this.loopDepth = savedLoop; }
     return mk('FuncDef', kw, { name: name.value, params, body });
+  }
+
+  parseLambda() {
+    const kw = this.advance();
+    this.expect(T.OP, '(', "'(' после «функ» в анонимной функции");
+    const params = this.parseParams();
+    this.expect(T.OP, ')', "')' после параметров");
+    this.expect(T.OP, ':', "двоеточие ':' после параметров анонимной функции");
+    if (this.check(T.NL)) this.error("Тело анонимной функции должно быть в той же строке после ':'", this.peek(),
+                                     'Для многострочной функции используйте: функ имя(…):');
+    const body = this.parseExpr();
+    return mk('Lambda', kw, { params, body });
   }
 
   parseClassdef() {
@@ -726,13 +743,22 @@ class Parser {
       const t = this.peek();
       if (t.kind === T.OP && t.value === '(') {
         this.advance();
-        const args = [];
+        const args = [], kwargs = [];
         while (!this.check(T.OP, ')')) {
-          args.push(this.parseExpr());
+          if (this.check(T.NAME) && this.check(T.OP, '=', 1)) {
+            const name = this.advance();
+            this.advance();
+            if (kwargs.some(([n]) => n === name.value)) this.error(`Повторяющийся именованный аргумент «${name.value}»`, name);
+            kwargs.push([name.value, this.parseExpr()]);
+          } else {
+            if (kwargs.length) this.error('Позиционный аргумент после именованного', null,
+                                          'Сначала пишите обычные аргументы, затем именованные: f(1, b = 2).');
+            args.push(this.parseExpr());
+          }
           if (!this.match(T.OP, ',')) break;
         }
         this.expect(T.OP, ')', "')' после аргументов");
-        expr = mk('Call', t, { func: expr, args });
+        expr = mk('Call', t, { func: expr, args, kwargs });
       } else if (t.kind === T.OP && t.value === '[') {
         this.advance();
         expr = this.parseSubscript(expr, t);
@@ -760,6 +786,7 @@ class Parser {
     if (t.kind === T.FSTR) { this.advance(); return this.buildFstring(t); }
     if (t.kind === T.NAME) { this.advance(); return mk('Name', t, { name: t.value }); }
     if (t.kind === T.KW) {
+      if (t.value === 'функ') return this.parseLambda();
       if (t.value === 'ақиқат') { this.advance(); return mk('Literal', t, { value: true }); }
       if (t.value === 'жалған') { this.advance(); return mk('Literal', t, { value: false }); }
       if (t.value === 'бос') { this.advance(); return mk('Literal', t, { value: null }); }
