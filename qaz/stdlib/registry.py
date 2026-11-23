@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..errors import QazaqRuntimeError
-from ..runtime import Builtin, type_name
+from ..runtime import Builtin, QSet, type_name
 
 BUILTINS: dict[str, Builtin] = {}
 METHODS: dict[type, dict[str, Builtin]] = {}
@@ -66,7 +66,7 @@ def expect_str(fname: str, v):
 
 def as_list(fname: str, v) -> list:
     """Любая перебираемая коллекция -> список (копия)."""
-    if isinstance(v, (list, range, str, tuple)):
+    if isinstance(v, (list, range, str, tuple, QSet)):
         return list(v)
     if isinstance(v, dict):
         return list(v.keys())

@@ -95,7 +95,7 @@ class Compare(Node):
 class Call(Node):
     func: Node
     args: list
-    kwargs: list = field(default_factory=list)  # [(имя, выражение)] — именованные аргументы
+    kwargs: list = field(default_factory=list)  # [(имя, выражение)]; имя None — это **словарь
 
 
 @dataclass(slots=True)
@@ -181,6 +181,13 @@ class For(Node):
 class Param:
     name: str
     default: Node | None = None
+    kind: str = ""  # "" — обычный, "rest" — *имя (остальные позиционные), "kwrest" — **имя (остальные именованные)
+
+
+@dataclass(slots=True)
+class Spread(Node):
+    """*выражение в вызове функции: элементы коллекции становятся отдельными аргументами."""
+    value: Node
 
 
 @dataclass(slots=True)

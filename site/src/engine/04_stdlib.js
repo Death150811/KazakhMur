@@ -104,13 +104,14 @@ function def(name, minArgs, maxArgs, fn) {
                                  meta.kw && meta.kw.length ? meta.kw : null, meta.kwonly && meta.kwonly.length ? meta.kwonly : null));
 }
 
-const METHODS = { str: {}, list: {}, dict: {}, tuple: {} };
+const METHODS = { str: {}, list: {}, dict: {}, tuple: {}, set: {} };
 function method(kind, name, minArgs, maxArgs, fn) { METHODS[kind][name] = { fn, minArgs, maxArgs }; }
 function methodTable(obj) {
   if (typeof obj === 'string') return METHODS.str;
   if (Array.isArray(obj)) return METHODS.list;
   if (obj instanceof QDict) return METHODS.dict;
   if (obj instanceof QTuple) return METHODS.tuple;
+  if (obj instanceof QSet) return METHODS.set;
   return null;
 }
 
@@ -141,6 +142,7 @@ function asList(fname, v) {
     return out;
   }
   if (v instanceof QDict) return v.keys();
+  if (v instanceof QSet) return v.items();
   throw rtError(`«${fname}»: ожидалась коллекция (тізім, аралық, мәтін, сөздік), получено ${typeName(v)}`);
 }
 function numbersArg(fname, v) {
@@ -168,8 +170,9 @@ def('ұзындық', 1, 1, (it, x) => {
   if (Array.isArray(x)) return BigInt(x.length);
   if (x instanceof QDict) return BigInt(x.size);
   if (x instanceof QTuple) return BigInt(x.items.length);
+  if (x instanceof QSet) return BigInt(x.size);
   if (x instanceof QRange) return x.length;
-  throw rtError(`«ұзындық»: у значения типа ${typeName(x)} нет длины`, 'Длину имеют мәтін, тізім, сөздік и аралық.');
+  throw rtError(`«ұзындық»: у значения типа ${typeName(x)} нет длины`, 'Длину имеют мәтін, тізім, кортеж, сөздік, жиын и аралық.');
 });
 def('түр', 1, 1, (it, x) => typeName(x));
 def('бүтін', 1, 1, (it, x) => {
@@ -205,6 +208,12 @@ def('мәтін', 0, 1, (it, ...args) => (args.length ? toStr(args[0]) : ''));
 def('логика', 1, 1, (it, x) => truthy(x));
 def('тізім', 0, 1, (it, ...args) => (args.length ? asList('тізім', args[0]) : []));
 def('кортеж', 0, 1, (it, ...args) => new QTuple(args.length ? asList('кортеж', args[0]) : []));
+function unhashableElement(name) { return rtError(`«${name}»: элементом множества не может быть изменяемое значение (тізім/сөздік/жиын)`); }
+function makeSet(name, items) {
+  try { return new QSet(items); }
+  catch (e) { if (e instanceof Unhashable) throw unhashableElement(name); throw e; }
+}
+def('жиын', 0, 1, (it, ...args) => (args.length ? makeSet('жиын', asList('жиын', args[0])) : new QSet()));
 def('сөздік', 0, 1, (it, ...args) => {
   if (!args.length) return new QDict();
   const src = args[0];
@@ -599,3 +608,21 @@ def('сыз', 2, 3, unavailable('сыз', 'недоступна в браузе�
 def('оқы', 1, 1, unavailable('оқы', 'недоступна в браузерной версии', null));
 def('сақта', 2, 2, unavailable('сақта', 'недоступна в браузерной версии', null));
 
+
+// ---------------- методы жиын ----------------
+method('set', 'қос', 1, 1, (it, s, x) => {
+  try { s.add(x); } catch (e) { if (e instanceof Unhashable) throw unhashableElement('қос'); throw e; }
+  return null;
+});
+method('set', 'өшір', 1, 1, (it, s, x) => {
+  let ok;
+  try { ok = s.delete(x); } catch (e) { if (e instanceof Unhashable) throw unhashableElement('өшір'); throw e; }
+  if (!ok) throw rtError(`«өшір»: значения ${toRepr(x)} нет в множестве`);
+  return null;
+});
+method('set', 'босат', 0, 0, (it, s) => { s.clear(); return null; });
+method('set', 'көшір', 0, 0, (it, s) => new QSet(s.items()));
+method('set', 'бірлестір', 1, 1, (it, s, other) => makeSet('бірлестір', [...s.items(), ...asList('бірлестір', other)]));
+method('set', 'қиылыс', 1, 1, (it, s, other) => { const o = makeSet('қиылыс', asList('қиылыс', other)); return new QSet(s.items().filter((x) => o.has(x))); });
+method('set', 'айырма', 1, 1, (it, s, other) => { const o = makeSet('айырма', asList('айырма', other)); return new QSet(s.items().filter((x) => !o.has(x))); });
+method('set', 'ішкіжиын', 1, 1, (it, s, other) => { const o = makeSet('ішкіжиын', asList('ішкіжиын', other)); return s.items().every((x) => o.has(x)); });

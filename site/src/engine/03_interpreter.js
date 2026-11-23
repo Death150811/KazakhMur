@@ -202,9 +202,10 @@ class Interpreter {
     const [, targets, iterNode] = clause;
     let iterable = this.evaluate(iterNode, env);
     if (iterable instanceof QDict) iterable = iterable.keys();
+    else if (iterable instanceof QSet) iterable = iterable.items();
     else if (iterable instanceof QTuple) iterable = iterable.items;
     else if (!(Array.isArray(iterable) || typeof iterable === 'string' || iterable instanceof QRange))
-      throw rtError(`Нельзя перебирать значение типа ${typeName(iterable)}`, 'Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.');
+      throw rtError(`Нельзя перебирать значение типа ${typeName(iterable)}`, 'Перебирать можно тізім, кортеж, мәтін, сөздік, жиын и аралық.');
     const each = (item) => {
       if (targets.length === 1) env.vars.set(targets[0], item);
       else this.unpack(item, targets.length).forEach((v, i) => env.vars.set(targets[i], v));
@@ -250,9 +251,10 @@ class Interpreter {
   xFor(node, env) {
     let iterable = this.evaluate(node.iterable, env);
     if (iterable instanceof QDict) iterable = iterable.keys();
+    else if (iterable instanceof QSet) iterable = iterable.items();
     else if (iterable instanceof QTuple) iterable = iterable.items;
     else if (!(Array.isArray(iterable) || typeof iterable === 'string' || iterable instanceof QRange))
-      throw rtError(`Нельзя перебирать значение типа ${typeName(iterable)}`, 'Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.');
+      throw rtError(`Нельзя перебирать значение типа ${typeName(iterable)}`, 'Перебирать можно тізім, кортеж, мәтін, сөздік, жиын и аралық.');
     const targets = node.targets;
     const step = (item) => {
       if (targets.length === 1) env.vars.set(targets[0], item);
@@ -470,9 +472,15 @@ class Interpreter {
             if (e instanceof Unhashable) throw rtError(`Нельзя сравнить ${typeName(a)} и ${typeName(b)} оператором «${op}»`);
             throw e;
           }
+        } else if (b instanceof QSet) {
+          try { found = b.has(a); }
+          catch (e) {
+            if (e instanceof Unhashable) throw rtError(`Нельзя сравнить ${typeName(a)} и ${typeName(b)} оператором «${op}»`);
+            throw e;
+          }
         } else if (b instanceof QRange) found = rangeHas(b, a);
         else throw rtError(`Оператор «ішінде» не применим к типу ${typeName(b)}`,
-                           'Правая часть должна быть мәтін, тізім, кортеж, сөздік или аралық.');
+                           'Правая часть должна быть мәтін, тізім, кортеж, сөздік, жиын или аралық.');
         return found === (op === 'ішінде');
       }
     }
@@ -594,10 +602,39 @@ class Interpreter {
   // ---- вызовы ----
   eCall(node, env) {
     const fn = this.evaluate(node.func, env);
-    const args = node.args.map((a) => this.evaluate(a, env));
+    const args = [];
+    for (const a of node.args) {
+      if (a.t === 'Spread') args.push(...this.spreadItems(this.evaluate(a.value, env)));
+      else args.push(this.evaluate(a, env));
+    }
     let kwargs = null;
-    if (node.kwargs.length) { kwargs = new Map(); for (const [name, expr] of node.kwargs) kwargs.set(name, this.evaluate(expr, env)); }
+    if (node.kwargs.length) {
+      kwargs = new Map();
+      for (const [name, expr] of node.kwargs) {
+        const value = this.evaluate(expr, env);
+        let pairs;
+        if (name === null) {   // **словарь
+          if (!(value instanceof QDict)) throw rtError(`После «**» нужен сөздік, а не ${typeName(value)}`);
+          pairs = value.entries();
+        } else pairs = [[name, value]];
+        for (const [key, v] of pairs) {
+          if (typeof key !== 'string') throw rtError(`Имена именованных аргументов должны быть мәтін, а не ${typeName(key)}`);
+          if (kwargs.has(key)) throw rtError(`Именованный аргумент «${key}» передан дважды`);
+          kwargs.set(key, v);
+        }
+      }
+    }
     return this.callValue(fn, args, node.line, kwargs);
+  }
+
+  spreadItems(value) {
+    if (Array.isArray(value)) return value.slice();
+    if (value instanceof QTuple) return value.items.slice();
+    if (typeof value === 'string') return strChars(value);
+    if (value instanceof QRange) return asList('*', value);
+    if (value instanceof QSet) return value.items();
+    if (value instanceof QDict) return value.keys();
+    throw rtError(`После «*» нужна коллекция (тізім, кортеж, мәтін, жиын, аралық), а не ${typeName(value)}`);
   }
 
   callValue(fn, args, line = null, kwargs = null) {
@@ -665,23 +702,32 @@ class Interpreter {
   }
 
   callFunction(fn, args, line, kwargs = null) {
-    const n = args.length, params = fn.params;
-    if (n > params.length || (!kwargs && n < fn.minArgs)) this.arity(fn.name, n, fn.minArgs, params.length);
+    const params = fn.params;
+    const normal = params.filter((p) => !p.kind);
+    const rest = params.find((p) => p.kind === 'rest') || null;
+    const kwrest = params.find((p) => p.kind === 'kwrest') || null;
+    const n = args.length;
+    if ((n > normal.length && rest === null) || (!kwargs && n < fn.minArgs)) this.arity(fn.name, n, fn.minArgs, rest ? null : normal.length);
     if (this.depth >= this.limits.maxDepth)
       throw rtError(`Превышена максимальная глубина вызовов (${this.limits.maxDepth})`, 'Проверьте условие выхода из рекурсии.');
     const local = new Env(fn.closure);
     const vars = local.vars;
-    for (let i = 0; i < Math.min(n, params.length); i++) vars.set(params[i].name, args[i]);
+    for (let i = 0; i < Math.min(n, normal.length); i++) vars.set(normal[i].name, args[i]);
+    if (rest !== null) vars.set(rest.name, new QTuple(args.slice(normal.length)));
+    const extra = new QDict();
     if (kwargs) {
-      const names = params.map((p) => p.name);
+      const names = normal.map((p) => p.name);
       for (const [key, value] of kwargs) {
-        if (!names.includes(key))
+        if (!names.includes(key)) {
+          if (kwrest !== null) { extra.set(key, value); continue; }
           throw rtError(`У функции «${fn.name}» нет параметра «${key}»`, 'Параметры: ' + (names.length ? names.join(', ') : 'нет'));
+        }
         if (vars.has(key)) throw rtError(`Параметр «${key}» функции «${fn.name}» получил значение дважды`);
         vars.set(key, value);
       }
     }
-    for (const p of params) {
+    if (kwrest !== null) vars.set(kwrest.name, extra);
+    for (const p of normal) {
       if (!vars.has(p.name)) {
         if (p.default === null) throw rtError(`Функция «${fn.name}» не получила значение параметра «${p.name}»`);
         vars.set(p.name, this.evaluate(p.default, fn.closure));

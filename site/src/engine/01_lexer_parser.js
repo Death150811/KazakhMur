@@ -665,12 +665,27 @@ class Parser {
     const params = [];
     let seenDefault = false;
     while (!this.check(T.OP, ')')) {
+      if (this.check(T.OP, '*') || this.check(T.OP, '**')) {
+        const star = this.advance();
+        const kind = star.value === '*' ? 'rest' : 'kwrest';
+        const pname = this.expect(T.NAME, undefined, `имя параметра после '${star.value}'`);
+        if (params.some((p) => p.kind === kind)) this.error(`Параметр «${star.value}» уже есть`, star);
+        if (kind === 'rest' && params.some((p) => p.kind === 'kwrest')) this.error('Параметр «*» должен стоять перед «**»', star);
+        if (params.some((p) => p.kind === 'kwrest')) this.error('После «**» параметров быть не может', star);
+        if (params.some((p) => p.name === pname.value)) this.error(`Повторяющийся параметр «${pname.value}»`, pname);
+        params.push({ name: pname.value, default: null, kind });
+        if (this.check(T.OP, '=')) this.error(`У параметра «${star.value}${pname.value}» не может быть значения по умолчанию`, this.peek());
+        if (!this.match(T.OP, ',')) break;
+        continue;
+      }
       const pname = this.expect(T.NAME, undefined, 'имя параметра');
+      if (params.some((p) => p.kind)) this.error('Обычный параметр после «*» или «**»', pname,
+                                                 'Сначала обычные параметры, затем *остальные, затем **именованные.');
       let def = null;
       if (this.match(T.OP, '=')) { def = this.parseExpr(); seenDefault = true; }
       else if (seenDefault) this.error('Параметр без значения по умолчанию после параметра со значением', pname);
       if (params.some((p) => p.name === pname.value)) this.error(`Повторяющийся параметр «${pname.value}»`, pname);
-      params.push({ name: pname.value, default: def });
+      params.push({ name: pname.value, default: def, kind: '' });
       if (!this.match(T.OP, ',')) break;
     }
     return params;
@@ -841,7 +856,15 @@ class Parser {
         this.advance();
         const args = [], kwargs = [];
         while (!this.check(T.OP, ')')) {
-          if (this.check(T.NAME) && this.check(T.OP, '=', 1)) {
+          if (this.check(T.OP, '*')) {
+            const star = this.advance();
+            if (kwargs.length) this.error('Позиционный аргумент после именованного', null,
+                                          'Сначала пишите обычные аргументы, затем именованные: f(1, b = 2).');
+            args.push(mk('Spread', star, { value: this.parseExpr() }));
+          } else if (this.check(T.OP, '**')) {
+            this.advance();
+            kwargs.push([null, this.parseExpr()]);
+          } else if (this.check(T.NAME) && this.check(T.OP, '=', 1)) {
             const name = this.advance();
             this.advance();
             if (kwargs.some(([n]) => n === name.value)) this.error(`Повторяющийся именованный аргумент «${name.value}»`, name);

@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
-from ..runtime import QInstance, to_repr, to_str, type_name, truthy
+from ..runtime import QInstance, QSet, to_repr, to_str, type_name, truthy
 from .registry import (as_list, builtin, expect_int, expect_number, expect_str, is_number,
                        method, rt_error)
 
@@ -26,12 +26,12 @@ def _input(interp, prompt=""):
 
 
 # ---------------- типы и преобразования ----------------
-@builtin("ұзындық", 1, 1, sig="ұзындық(x)", doc="Длина мәтін, тізім, сөздік или аралық.")
+@builtin("ұзындық", 1, 1, sig="ұзындық(x)", doc="Длина мәтін, тізім, кортеж, сөздік, жиын или аралық.")
 def _len(interp, x):
-    if isinstance(x, (str, list, dict, range, tuple)):
+    if isinstance(x, (str, list, dict, range, tuple, QSet)):
         return len(x)
     rt_error(f"«ұзындық»: у значения типа {type_name(x)} нет длины",
-             hint="Длину имеют мәтін, тізім, сөздік и аралық.")
+             hint="Длину имеют мәтін, тізім, кортеж, сөздік, жиын и аралық.")
 
 
 @builtin("түр", 1, 1, sig="түр(x)", doc="Имя типа значения (мәтін, бүтін, нақты, логика, тізім, сөздік, бос …).")
@@ -89,6 +89,21 @@ def _list(interp, *args):
 @builtin("кортеж", 0, 1, sig="кортеж(x?)", doc="Создаёт неизменяемый кортеж из коллекции (или пустой).")
 def _tuple(interp, *args):
     return tuple(as_list("кортеж", args[0])) if args else ()
+
+
+@builtin("жиын", 0, 1, sig="жиын(коллекция?)",
+         doc="Множество: набор без повторов, порядок — по добавлению. Элементы только неизменяемые (не тізім/сөздік/жиын).")
+def _set(interp, *args):
+    if not args:
+        return QSet()
+    try:
+        return QSet(as_list("жиын", args[0]))
+    except TypeError:
+        _unhashable_element("жиын")
+
+
+def _unhashable_element(name: str):
+    rt_error(f"«{name}»: элементом множества не может быть изменяемое значение (тізім/сөздік/жиын)")
 
 
 @builtin("сөздік", 0, 1, sig="сөздік(пары?)", doc="Создаёт словарь из списка пар [[ключ, значение], …] (или пустой).")
@@ -461,3 +476,62 @@ def _t_index(interp, t, x):
 @method(tuple, "сана", 1, 1, sig=".сана(x)", doc="Сколько раз значение встречается.")
 def _t_count(interp, t, x):
     return t.count(x)
+
+
+# ---------------- методы жиын ----------------
+def _other_set(name: str, other) -> QSet:
+    try:
+        return QSet(as_list(name, other))
+    except TypeError:
+        _unhashable_element(name)
+
+
+@method(QSet, "қос", 1, 1, sig=".қос(x)", doc="Добавляет элемент (если его ещё нет).")
+def _s_add(interp, s, x):
+    try:
+        s.d.setdefault(x, True)
+    except TypeError:
+        _unhashable_element("қос")
+
+
+@method(QSet, "өшір", 1, 1, sig=".өшір(x)", doc="Удаляет элемент; если его нет — ошибка.")
+def _s_remove(interp, s, x):
+    try:
+        del s.d[x]
+    except KeyError:
+        rt_error(f"«өшір»: значения {to_repr(x)} нет в множестве")
+    except TypeError:
+        _unhashable_element("өшір")
+
+
+@method(QSet, "босат", 0, 0, sig=".босат()", doc="Удаляет все элементы.")
+def _s_clear(interp, s):
+    s.d.clear()
+
+
+@method(QSet, "көшір", 0, 0, sig=".көшір()", doc="Копия множества.")
+def _s_copy(interp, s):
+    return QSet(s)
+
+
+@method(QSet, "бірлестір", 1, 1, sig=".бірлестір(другая)", doc="Новое множество: элементы обоих (объединение).")
+def _s_union(interp, s, other):
+    return QSet([*s, *_other_set("бірлестір", other)])
+
+
+@method(QSet, "қиылыс", 1, 1, sig=".қиылыс(другая)", doc="Новое множество: элементы, которые есть в обоих (пересечение).")
+def _s_inter(interp, s, other):
+    o = _other_set("қиылыс", other)
+    return QSet(x for x in s if x in o)
+
+
+@method(QSet, "айырма", 1, 1, sig=".айырма(другая)", doc="Новое множество: элементы этого, которых нет в другом (разность).")
+def _s_diff(interp, s, other):
+    o = _other_set("айырма", other)
+    return QSet(x for x in s if x not in o)
+
+
+@method(QSet, "ішкіжиын", 1, 1, sig=".ішкіжиын(другая)", doc="Истина, если все элементы этого множества есть в другом.")
+def _s_subset(interp, s, other):
+    o = _other_set("ішкіжиын", other)
+    return all(x in o for x in s)

@@ -39,7 +39,7 @@ class Env {
 
 class QFunction {
   constructor(name, params, body, closure) { this.name = name; this.params = params; this.body = body; this.closure = closure;
-    this.minArgs = params.filter((p) => p.default === null).length; }
+    this.minArgs = params.filter((p) => p.default === null && !p.kind).length; }
 }
 class Builtin {
   constructor(name, fn, minArgs, maxArgs, category, sig, doc, unsafe, kw = null, kwonly = null) {
@@ -87,7 +87,7 @@ class QDict {
       case 'string': return 's' + k;
       default:
         if (k === null) return 'n';
-        if (Array.isArray(k) || k instanceof QDict) throw new Unhashable();
+        if (Array.isArray(k) || k instanceof QDict || k instanceof QSet) throw new Unhashable();
         if (k instanceof QRange) return 'r' + k.start + ',' + k.stop + ',' + k.step;
         if (k instanceof QTuple) return 't(' + k.items.map((x) => { const q = QDict.keyOf(x); return typeof q === 'string' ? q : 'o' + objId(q); }).join(',') + ')';
         return k;
@@ -105,6 +105,17 @@ class QDict {
   copy() { const d = new QDict(); for (const [k, v] of this.entries()) d.set(k, v); return d; }
 }
 
+// Множество: порядок элементов — по добавлению; элементы — только неизменяемые значения
+class QSet {
+  constructor(items = []) { this.d = new QDict(); for (const x of items) this.add(x); }
+  add(x) { if (!this.d.has(x)) this.d.set(x, true); }   // has/set бросают Unhashable для изменяемых значений
+  has(x) { return this.d.has(x); }
+  delete(x) { return this.d.delete(x); }
+  get size() { return this.d.size; }
+  items() { return this.d.keys(); }
+  clear() { this.d.clear(); }
+}
+
 const isFn = (v) => v instanceof QFunction || v instanceof Builtin || v instanceof BoundBuiltin || v instanceof BoundMethod;
 
 function typeName(v) {
@@ -118,6 +129,7 @@ function typeName(v) {
   if (Array.isArray(v)) return 'тізім';
   if (v instanceof QTuple) return 'кортеж';
   if (v instanceof QDict) return 'сөздік';
+  if (v instanceof QSet) return 'жиын';
   if (v instanceof QRange) return 'аралық';
   if (isFn(v)) return 'функция';
   if (v instanceof QClass) return 'сынып';
@@ -136,6 +148,7 @@ function truthy(v) {
   if (Array.isArray(v)) return v.length > 0;
   if (v instanceof QTuple) return v.items.length > 0;
   if (v instanceof QDict) return v.size > 0;
+  if (v instanceof QSet) return v.size > 0;
   if (v instanceof QRange) return v.length > 0n;
   return true;
 }
@@ -190,6 +203,7 @@ function quote(s) {
 }
 function toRepr(v, seen = null, depth = 0) {
   if (typeof v === 'string') return quote(v);
+  if (v instanceof QSet) return 'жиын([' + v.items().map((x) => toRepr(x, seen, depth + 1)).join(', ') + '])';
   if (v instanceof QTuple) {
     seen = seen || new Set();
     if (seen.has(v) || depth > 20) return '(…)';
@@ -219,7 +233,7 @@ function toStr(v) {
     case 'bigint': return v.toString();
     case 'number': return floatRepr(v);
   }
-  if (Array.isArray(v) || v instanceof QDict || v instanceof QTuple) return toRepr(v);
+  if (Array.isArray(v) || v instanceof QDict || v instanceof QTuple || v instanceof QSet) return toRepr(v);
   if (v instanceof QRange) return v.step === 1n ? `аралық(${v.start}, ${v.stop})` : `аралық(${v.start}, ${v.stop}, ${v.step})`;
   if (v instanceof QFunction) return `<функция ${v.name}>`;
   if (v instanceof Builtin || v instanceof BoundBuiltin) return `<ішкі функция ${v.name}>`;
@@ -280,6 +294,11 @@ function valuesEqual(a, b) {
   if (a instanceof QDict) {
     if (!(b instanceof QDict) || a.size !== b.size) return false;
     for (const [k, v] of a.entries()) { const w = b.get(k); if (w === undefined || !valuesEqual(v, w)) return false; }
+    return true;
+  }
+  if (a instanceof QSet) {
+    if (!(b instanceof QSet) || a.size !== b.size) return false;
+    for (const x of a.items()) if (!b.has(x)) return false;
     return true;
   }
   if (a instanceof QRange) {

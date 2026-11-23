@@ -60,7 +60,7 @@ class QFunction:
 
     @property
     def min_args(self) -> int:
-        return sum(1 for p in self.params if p.default is None)
+        return sum(1 for p in self.params if p.default is None and not p.kind)
 
 
 @dataclass(eq=False)
@@ -117,6 +117,31 @@ class BoundMethod:
 FUNCTION_TYPES = (QFunction, Builtin, BoundBuiltin, BoundMethod)
 
 
+class QSet:
+    """Множество (жиын). Порядок — по добавлению: у обычного set Python порядок строк зависит от хеша
+    и меняется между запусками, а Qazaq обязан быть детерминированным. Элементы — только неизменяемые значения."""
+    __slots__ = ("d",)
+
+    def __init__(self, items=()):
+        self.d: dict = {}
+        for x in items:
+            self.d.setdefault(x, True)  # TypeError, если элемент изменяемый (список, словарь, множество)
+
+    def __len__(self) -> int:
+        return len(self.d)
+
+    def __iter__(self):
+        return iter(self.d)
+
+    def __contains__(self, x) -> bool:
+        return x in self.d
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, QSet) and self.d.keys() == other.d.keys()
+
+    __hash__ = None  # множество нельзя использовать как ключ словаря или элемент другого множества
+
+
 def type_name(v) -> str:
     if v is None:
         return "бос"
@@ -134,6 +159,8 @@ def type_name(v) -> str:
         return "кортеж"
     if isinstance(v, dict):
         return "сөздік"
+    if isinstance(v, QSet):
+        return "жиын"
     if isinstance(v, range):
         return "аралық"
     if isinstance(v, FUNCTION_TYPES):
@@ -154,6 +181,8 @@ def to_repr(v, _seen: set | None = None, _depth: int = 0) -> str:
     """Представление значения «как в коде»: строки в кавычках."""
     if isinstance(v, str):
         return _quote(v)
+    if isinstance(v, QSet):
+        return "жиын([" + ", ".join(to_repr(x, _seen, _depth + 1) for x in v) + "])"
     if isinstance(v, (list, dict, tuple)):
         seen = _seen if _seen is not None else set()
         if id(v) in seen or _depth > 20:
@@ -183,7 +212,7 @@ def to_str(v) -> str:
         return v
     if isinstance(v, (int, float)):
         return repr(v)
-    if isinstance(v, (list, dict, tuple)):
+    if isinstance(v, (list, dict, tuple, QSet)):
         return to_repr(v)
     if isinstance(v, range):
         if v.step == 1:

@@ -11,7 +11,7 @@ from . import ast_nodes as A
 from .errors import QazaqError, QazaqRuntimeError, ResourceLimitError
 from .lexer import Lexer
 from .parser import Parser
-from .runtime import (BoundBuiltin, BoundMethod, Builtin, Env, QClass, QFunction, QInstance,
+from .runtime import (BoundBuiltin, BoundMethod, Builtin, Env, QClass, QFunction, QInstance, QSet,
                       suggest, to_repr, to_str, truthy, type_name)
 from .stdlib import BUILTINS, CONSTANTS, METHODS
 
@@ -279,12 +279,12 @@ class Interpreter:
 
     def x_for(self, node: A.For, env: Env) -> None:
         iterable = self.evaluate(node.iterable, env)
-        if isinstance(iterable, dict):
+        if isinstance(iterable, (dict, QSet)):
             iterable = list(iterable)
         elif not isinstance(iterable, (list, str, range, tuple)):
             raise QazaqRuntimeError(
                 f"Нельзя перебирать значение типа {type_name(iterable)}",
-                hint="Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.")
+                hint="Перебирать можно тізім, кортеж, мәтін, сөздік, жиын и аралық.")
         targets = node.targets
         for item in iterable:
             if len(targets) == 1:
@@ -502,10 +502,10 @@ class Interpreter:
                     if not isinstance(a, str):
                         raise QazaqRuntimeError(
                             f"В строке можно искать только строку, а не {type_name(a)}")
-                elif not isinstance(b, (list, dict, range, tuple)):
+                elif not isinstance(b, (list, dict, range, tuple, QSet)):
                     raise QazaqRuntimeError(
                         f"Оператор «ішінде» не применим к типу {type_name(b)}",
-                        hint="Правая часть должна быть мәтін, тізім, кортеж, сөздік или аралық.")
+                        hint="Правая часть должна быть мәтін, тізім, кортеж, сөздік, жиын или аралық.")
                 return (a in b) == (op == "ішінде")
         except TypeError:
             raise QazaqRuntimeError(
@@ -616,11 +616,11 @@ class Interpreter:
             return
         _, targets, iterable_node = clauses[idx]
         iterable = self.evaluate(iterable_node, env)
-        if isinstance(iterable, dict):
+        if isinstance(iterable, (dict, QSet)):
             iterable = list(iterable)
         elif not isinstance(iterable, (list, str, range, tuple)):
             raise QazaqRuntimeError(f"Нельзя перебирать значение типа {type_name(iterable)}",
-                                    hint="Перебирать можно тізім, кортеж, мәтін, сөздік и аралық.")
+                                    hint="Перебирать можно тізім, кортеж, мәтін, сөздік, жиын и аралық.")
         for item in iterable:
             if len(targets) == 1:
                 env.vars[targets[0]] = item
@@ -668,9 +668,40 @@ class Interpreter:
 
     def e_call(self, node: A.Call, env: Env):
         fn = self.evaluate(node.func, env)
-        args = [self.evaluate(a, env) for a in node.args]
-        kwargs = {name: self.evaluate(expr, env) for name, expr in node.kwargs} if node.kwargs else None
+        args: list = []
+        for a in node.args:
+            if isinstance(a, A.Spread):
+                args.extend(self._spread_items(self.evaluate(a.value, env)))
+            else:
+                args.append(self.evaluate(a, env))
+        kwargs = None
+        if node.kwargs:
+            kwargs = {}
+            for name, expr in node.kwargs:
+                value = self.evaluate(expr, env)
+                if name is None:  # **словарь
+                    if not isinstance(value, dict):
+                        raise QazaqRuntimeError(f"После «**» нужен сөздік, а не {type_name(value)}")
+                    pairs = list(value.items())
+                else:
+                    pairs = [(name, value)]
+                for key, v in pairs:
+                    if not isinstance(key, str):
+                        raise QazaqRuntimeError(
+                            f"Имена именованных аргументов должны быть мәтін, а не {type_name(key)}")
+                    if key in kwargs:
+                        raise QazaqRuntimeError(f"Именованный аргумент «{key}» передан дважды")
+                    kwargs[key] = v
         return self.call_value(fn, args, node.line, kwargs)
+
+    @staticmethod
+    def _spread_items(value) -> list:
+        if isinstance(value, (list, tuple, str, range, QSet)):
+            return list(value)
+        if isinstance(value, dict):
+            return list(value)
+        raise QazaqRuntimeError(
+            f"После «*» нужна коллекция (тізім, кортеж, мәтін, жиын, аралық), а не {type_name(value)}")
 
     def call_value(self, fn, args: list, line: int | None = None, kwargs: dict | None = None):
         if isinstance(fn, QFunction):
@@ -745,21 +776,31 @@ class Interpreter:
                 f"«{name}» ожидает аргументов: {want}, получено: {given}")
 
     def call_function(self, fn: QFunction, args: list, line: int | None, kwargs: dict | None = None):
-        n, params = len(args), fn.params
-        if n > len(params) or (not kwargs and n < fn.min_args):
-            self._arity(fn.name, n, fn.min_args, len(params))
+        params = fn.params
+        normal = [p for p in params if not p.kind]
+        rest = next((p for p in params if p.kind == "rest"), None)
+        kwrest = next((p for p in params if p.kind == "kwrest"), None)
+        n = len(args)
+        if (n > len(normal) and rest is None) or (not kwargs and n < fn.min_args):
+            self._arity(fn.name, n, fn.min_args, None if rest else len(normal))
         if self.depth >= self.limits.max_depth:
             raise QazaqRuntimeError(
                 f"Превышена максимальная глубина вызовов ({self.limits.max_depth})",
                 hint="Проверьте условие выхода из рекурсии.")
         local = Env(fn.closure)
         vars_ = local.vars
-        for i in range(min(n, len(params))):
-            vars_[params[i].name] = args[i]
+        for i in range(min(n, len(normal))):
+            vars_[normal[i].name] = args[i]
+        if rest is not None:
+            vars_[rest.name] = tuple(args[len(normal):])
+        extra: dict = {}
         if kwargs:
-            names = [p.name for p in params]
+            names = [p.name for p in normal]
             for key, value in kwargs.items():
                 if key not in names:
+                    if kwrest is not None:
+                        extra[key] = value
+                        continue
                     raise QazaqRuntimeError(
                         f"У функции «{fn.name}» нет параметра «{key}»",
                         hint="Параметры: " + (", ".join(names) if names else "нет"))
@@ -767,7 +808,9 @@ class Interpreter:
                     raise QazaqRuntimeError(
                         f"Параметр «{key}» функции «{fn.name}» получил значение дважды")
                 vars_[key] = value
-        for p in params:
+        if kwrest is not None:
+            vars_[kwrest.name] = extra
+        for p in normal:
             if p.name not in vars_:
                 if p.default is None:
                     raise QazaqRuntimeError(

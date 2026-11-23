@@ -320,11 +320,33 @@ class Parser:
         return A.For(targets, iterable, body, line=kw.line, col=kw.col)
 
     def parse_params(self) -> list:
-        """Параметры функции или лямбды: a, b = 5, c = a"""
+        """Параметры функции или лямбды: a, b = 5, *остальные, **именованные"""
         params: list[A.Param] = []
         seen_default = False
         while not self.check(OP, ")"):
+            if self.check(OP, "*") or self.check(OP, "**"):
+                star = self.advance()
+                kind = "rest" if star.value == "*" else "kwrest"
+                pname = self.expect(NAME, what=f"имя параметра после '{star.value}'")
+                if any(p.kind == kind for p in params):
+                    self.error(f"Параметр «{star.value}» уже есть", star)
+                if kind == "rest" and any(p.kind == "kwrest" for p in params):
+                    self.error("Параметр «*» должен стоять перед «**»", star)
+                if any(p.kind == "kwrest" for p in params):
+                    self.error("После «**» параметров быть не может", star)
+                if any(p.name == pname.value for p in params):
+                    self.error(f"Повторяющийся параметр «{pname.value}»", pname)
+                params.append(A.Param(pname.value, None, kind))
+                if self.check(OP, "="):
+                    self.error(f"У параметра «{star.value}{pname.value}» не может быть значения по умолчанию",
+                               self.peek())
+                if not self.match(OP, ","):
+                    break
+                continue
             pname = self.expect(NAME, what="имя параметра")
+            if any(p.kind for p in params):
+                self.error("Обычный параметр после «*» или «**»", pname,
+                           hint="Сначала обычные параметры, затем *остальные, затем **именованные.")
             default = None
             if self.match(OP, "="):
                 default = self.parse_expr()
@@ -522,7 +544,16 @@ class Parser:
                 self.advance()
                 args, kwargs = [], []
                 while not self.check(OP, ")"):
-                    if self.check(NAME) and self.check(OP, "=", 1):
+                    if self.check(OP, "*"):
+                        star = self.advance()
+                        if kwargs:
+                            self.error("Позиционный аргумент после именованного",
+                                       hint="Сначала пишите обычные аргументы, затем именованные: f(1, b = 2).")
+                        args.append(A.Spread(self.parse_expr(), line=star.line, col=star.col))
+                    elif self.check(OP, "**"):
+                        self.advance()
+                        kwargs.append((None, self.parse_expr()))
+                    elif self.check(NAME) and self.check(OP, "=", 1):
                         name = self.advance()
                         self.advance()
                         if any(n == name.value for n, _ in kwargs):
