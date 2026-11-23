@@ -103,7 +103,7 @@ button { font: inherit; color: inherit; }
 .chip-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shade); }
 
 /* ---------- Hero ---------- */
-.hero { position: relative; background: var(--hero); color: var(--hero-ink); overflow: hidden; isolation: isolate; border-bottom: 2px solid var(--line); }
+.hero { position: relative; background: var(--hero); color: var(--hero-ink); overflow: hidden; overflow: clip; isolation: isolate; border-bottom: 2px solid var(--line); }
 .hero::before { content: ""; position: absolute; inset: 0; z-index: -2; background-image: radial-gradient(circle at 1px 1px, var(--pat) 1.3px, transparent 1.6px); background-size: 22px 22px; }
 .hero-orn { height: 28px; margin-top: 0; }
 .hero .wrap { position: relative; }
@@ -128,7 +128,7 @@ button { font: inherit; color: inherit; }
 @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* Demo terminal: types real snippets, the period lands last, output comes from the real engine */
-.demo { position: relative; max-width: 30rem; border: 2px solid var(--line); border-radius: 12px; background: var(--t-bg); color: var(--t-ink); box-shadow: 6px 6px 0 var(--shade); overflow: hidden; animation: fade 0.8s 0.95s both; }
+.demo { position: relative; max-width: 30rem; border: 2px solid var(--line); border-radius: 12px; background: var(--t-bg); color: var(--t-ink); box-shadow: 6px 6px 0 var(--shade); overflow: hidden; overflow: clip; animation: fade 0.8s 0.95s both; }
 .demo-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--t-line); font-size: 11.5px; font-family: var(--mono); color: var(--t-ink3); }
 .demo-bar i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); display: inline-block; }
 .demo-body { padding: 10px 14px 12px; min-height: 76px; font-size: 13.5px; line-height: 22px; }
@@ -161,7 +161,7 @@ button { font: inherit; color: inherit; }
 .pg, .codeblock, .result, .errcard, .demo { --danger: #ff7b86; --ok: #5fe3a1; --warn: #ffb86b; }
 
 /* ---------- Playground (a dark terminal in both themes) ---------- */
-.pg { position: relative; border: 2px solid #0a1b2a; border-radius: 14px; background: var(--t-bg); color: var(--t-ink); box-shadow: 10px 10px 0 var(--shade); min-width: 0; display: flex; flex-direction: column; animation: fade 0.9s 0.3s both; }
+.pg { container: pg / inline-size; position: relative; border: 2px solid #0a1b2a; border-radius: 14px; background: var(--t-bg); color: var(--t-ink); box-shadow: 10px 10px 0 var(--shade); min-width: 0; display: flex; flex-direction: column; animation: fade 0.9s 0.3s both; }
 :root[data-theme="dark"] .pg, :root:not([data-theme="light"]) .pg { border-color: var(--line); }
 .pg-bar { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--t-line); flex-wrap: wrap; background: var(--t-bg2); border-radius: 12px 12px 0 0; }
 .pg-file { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; color: var(--t-ink2); font-weight: 600; }
@@ -522,3 +522,10 @@ body[data-view="book"] #book { display: block; }
 .st-out { margin: 0; padding: 8px 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--t-line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; max-height: 110px; overflow: auto; min-height: 2.2em; }
 @media (max-width: 720px) { .steps-grid { grid-template-columns: minmax(0, 1fr); } }
 .gutter-in div.step { color: var(--gold); font-weight: 800; }
+
+/* узкая панель редактора: статус движка сворачивается в точку, чтобы кнопки не переносились на вторую строку */
+@container pg (max-width: 720px) {
+  #engineText { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .engine { padding: 4px 7px; }
+  .engine-dot { width: 8px; height: 8px; }
+}

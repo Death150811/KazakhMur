@@ -84,3 +84,17 @@ def test_accessibility_audit(built):
     if proc.returncode == 77:
         pytest.skip("Playwright или axe-core недоступны")
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="Node.js не установлен")
+def test_performance_budget(built):
+    env = dict(os.environ)
+    if "NODE_PATH" not in env:
+        root = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True)
+        if root.returncode == 0:
+            env["NODE_PATH"] = root.stdout.strip()
+    proc = subprocess.run([NODE, str(ROOT / "site" / "test" / "perf.js")], capture_output=True, text=True,
+                          encoding="utf-8", env=env, cwd=ROOT, timeout=280)
+    if proc.returncode == 77:
+        pytest.skip("Playwright недоступен")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
