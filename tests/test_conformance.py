@@ -79,6 +79,8 @@ def all_programs() -> dict[str, tuple[str, str]]:
     for chapter in book["chapters"]:
         if chapter["try"]:
             progs[f"book_{chapter['id']}"] = (chapter["try"]["code"], "")
+    if not HAVE_SYMPY:  # без SymPy научные функции в Python-движке недоступны — такие программы не сравниваем
+        progs = {n: pc for n, pc in progs.items() if not re.search(r"(шеш|туын|туынды|интегр|интеграл|сыз)\(", pc[0])}
     return progs
 
 

@@ -34,6 +34,7 @@ EXCLUDE_SUFFIX = {".pyc", ".png"}
 
 # Краткое назначение файлов и каталогов для дерева (остальное — по имени)
 PURPOSE = {
+    ".github/workflows/ci.yml": "автотесты (вручную и на Pull Request); на GitHub ещё не запускался",
     ".github/workflows/pages.yml": "публикация сайта на GitHub Pages при пуше в main",
     ".gitignore": "что не попадает в git (dist, кэши, png)",
     "CHANGELOG.md": "история изменений по версиям",
@@ -94,6 +95,7 @@ PURPOSE = {
     "site/src/tour.json": "карточки «О языке» и темы тура (код + тексты ru/kk)",
     "site/test/a11y.js": "аудит доступности axe-core (WCAG 2 A/AA)",
     "site/test/e2e.js": "сквозной тест сайта в настоящем браузере (Playwright)",
+    "site/test/engine_api.js": "проверка API JS-движка без браузера: tokens, tree, trace, translateError",
     "site/test/perf.js": "бюджет производительности (вес, FCP, LCP, CLS, долгие задачи)",
     "site/test/run_corpus.js": "запускает корпус программ через JS-движок (для дифференциального теста)",
     "tests/conformance_corpus.py": "корпус программ для сравнения Python и JS",
@@ -310,7 +312,12 @@ def auto_glossary() -> str:
 
 def auto_book_chapters() -> str:
     book = load_book()
-    return "\n".join(f"{i + 1}. **{c['title']}** — {re.sub(r'[\[\]`*|]|[a-z0-9-]+\|', '', c['lead'])}" for i, c in enumerate(book["chapters"]))
+    markup = re.compile(r"[\[\]`*|]|[a-z0-9-]+\|")  # разметка книги: [[id|слово]], `код`, **жирный**
+    lines = []
+    for i, c in enumerate(book["chapters"]):
+        lead = markup.sub("", c["lead"])
+        lines.append(f"{i + 1}. **{c['title']}** — {lead}")
+    return "\n".join(lines)
 
 
 def slug(title: str) -> str:

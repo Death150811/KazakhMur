@@ -52,7 +52,14 @@ def test_language_json_matches_python(built):
 def test_tour_snippets_run_in_both_engines(built):
     tour = json.loads((ROOT / "site" / "src" / "tour.json").read_text(encoding="utf-8"))
     from qaz.runner import execute
+    try:
+        import sympy  # noqa: F401
+        have_sympy = True
+    except ImportError:
+        have_sympy = False
     for item in tour["cards"] + tour["sections"]:
+        if not have_sympy and re.search(r"(шеш|туын|туынды|интегр|интеграл|сыз)\(", item["code"]):
+            continue  # научные функции Python-движка требуют SymPy
         res = execute({"code": item["code"]})
         expected_error = item.get("expect") == "error"
         assert (res["status"] == "error") == expected_error, (item["id"], res["error"])
@@ -98,3 +105,12 @@ def test_performance_budget(built):
     if proc.returncode == 77:
         pytest.skip("Playwright недоступен")
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="Node.js не установлен")
+def test_js_engine_api(built):
+    """tokens/tree/trace/translateError — возможности JS-движка, которых нет в Python."""
+    proc = subprocess.run([NODE, str(ROOT / "site" / "test" / "engine_api.js")], capture_output=True, text=True,
+                          encoding="utf-8", cwd=ROOT, timeout=120)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "ENGINE API OK" in proc.stdout

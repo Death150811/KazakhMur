@@ -1,0 +1,28 @@
+# Автотесты проекта. Запускается вручную (вкладка Actions → «Тесты» → Run workflow) и на Pull Request.
+# ВНИМАНИЕ: этот workflow на GitHub ещё ни разу не запускался. Те же команды проверены локально на Python 3.11, 3.12 и 3.13
+# (на 3.10 проект не проверялся). Если на GitHub что-то упадёт из-за установки Playwright — правьте шаги ниже, код тут ни при чём.
+name: Тесты
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev,science,server]"
+      - run: npm install -g playwright axe-core
+      - run: npx playwright install --with-deps chromium
+      - run: python scripts/build_site.py
+      - run: python -m pytest

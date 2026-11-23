@@ -19,11 +19,10 @@
 | Задача | Зачем | Подсказка |
 |---|---|---|
 | Проверка сайта в **Firefox и Safari** | тестировался только Chromium; `overflow: clip`, container queries, `Worker` из Blob — в старых браузерах могут вести себя иначе | добавить Firefox/WebKit в Playwright (`playwright install` не нужен, если браузеры недоступны — проверить в окружении); запасные стили |
-| **CI на GitHub** | сейчас есть только `pages.yml`; тесты не запускаются автоматически | `.github/workflows/ci.yml`: Python 3.10–3.13, `pip install -e ".[dev,science,server]"`, Node 22 + `npx playwright install chromium` + `npm i -g axe-core`, `pytest` |
+| **Запустить CI на GitHub** | `.github/workflows/ci.yml` написан, но не запускался | после слияния/в PR нажать Run workflow; поправить шаги установки Playwright, если упадут; добавить Python 3.10, если решите его поддерживать (проверить локально) |
 | Проверка `Dockerfile` | образ ни разу не собирался | `docker build`, запуск, прогон `tests/test_backend.py` в контейнере |
 | Lighthouse | не запускался | `npx lighthouse` по собранной странице; сверить с `site/test/perf.js` |
 | Живая проверка в claude.ai | неизвестно, как Artifact-iframe ведёт себя с `window.print()`, хэш-роутингом | открыть ссылку, проверить кнопку «Сохранить как PDF», переходы `#book/…`; при проблемах — запасной сценарий (ссылка на PDF) |
-| Тесты для JS-only кода | `tokens`, `tree`, `trace` проверяются только e2e | юнит-тесты на Node (`site/test/`): снимки состояния `trace`, структура `tree` |
 
 **П2. Язык (базис «как у Python» — что ещё нет)**
 
