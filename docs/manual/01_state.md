@@ -11,6 +11,7 @@
 | Ветка `main` | **не создана**: автоматический классификатор безопасности заблокировал пуш в `main`. Её нужно создавать только с разрешения владельца (см. главу 2) |
 | Локальная копия в облачной сессии | `/home/user/kazakhmur` |
 | Опубликованный сайт (Artifact, приватный) | https://claude.ai/artifact/SXdTbbowEAk2mDLHuC1hKL — обновляется командой `Artifact publish` с тем же `url` и файлом `site/dist/fragment.html` |
+| Это руководство как веб-страница (Artifact, приватная) | https://claude.ai/artifact/2C4o7stK78o43Yyxg85MaN — собирается `python3 scripts/make_manual_html.py` (нужен `pip install markdown`), публикуется файлом `site/dist/manual.html`; после правки глав: `gen_manual.py` → `make_manual_html.py` → `Artifact publish` с этим `url` |
 | Запланированное продолжение | отложенное сообщение (trigger) `trig_01FnL5Aat9Xx1nukFbhSBQeq`, срабатывает 2026-11-23 18:20 UTC; его текст — список оставшихся задач |
 | Версия | 0.2.0 (в `pyproject.toml`, `qaz/__init__.py`, подвале сайта) |
 | Лицензия | MIT (файл `LICENSE`). Выбор сделал исполнитель как значение по умолчанию, когда владелец попросил «подготовить лицензии и всё для деплоя»; владелец может заменить |

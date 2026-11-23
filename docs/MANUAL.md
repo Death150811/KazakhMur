@@ -103,6 +103,7 @@ JavaScript для браузера (`site/src/engine/`), командная ст
 | Ветка `main` | **не создана**: автоматический классификатор безопасности заблокировал пуш в `main`. Её нужно создавать только с разрешения владельца (см. главу 2) |
 | Локальная копия в облачной сессии | `/home/user/kazakhmur` |
 | Опубликованный сайт (Artifact, приватный) | https://claude.ai/artifact/SXdTbbowEAk2mDLHuC1hKL — обновляется командой `Artifact publish` с тем же `url` и файлом `site/dist/fragment.html` |
+| Это руководство как веб-страница (Artifact, приватная) | https://claude.ai/artifact/2C4o7stK78o43Yyxg85MaN — собирается `python3 scripts/make_manual_html.py` (нужен `pip install markdown`), публикуется файлом `site/dist/manual.html`; после правки глав: `gen_manual.py` → `make_manual_html.py` → `Artifact publish` с этим `url` |
 | Запланированное продолжение | отложенное сообщение (trigger) `trig_01FnL5Aat9Xx1nukFbhSBQeq`, срабатывает 2026-11-23 18:20 UTC; его текст — список оставшихся задач |
 | Версия | 0.2.0 (в `pyproject.toml`, `qaz/__init__.py`, подвале сайта) |
 | Лицензия | MIT (файл `LICENSE`). Выбор сделал исполнитель как значение по умолчанию, когда владелец попросил «подготовить лицензии и всё для деплоя»; владелец может заменить |
@@ -248,6 +249,7 @@ E2E_VERBOSE=1 node site/test/e2e.js      # то же с названиями ш�
 ```bash
 python3 scripts/gen_stdlib_doc.py        # docs/STANDARD_LIBRARY.md ← реестр функций
 python3 scripts/gen_manual.py            # docs/MANUAL.md и docs/KAZAKH_MESSAGES_REVIEW.md
+python3 scripts/make_manual_html.py      # site/dist/manual.html — веб-страница руководства (pip install markdown)
 node scripts/make_book_pdf.js            # docs/QAZAQ_BOOK.pdf ← раздел «Книга» (нужен собранный сайт)
 ```
 
@@ -435,6 +437,7 @@ scripts/   — сборка и генерация
   gen_manual.py   — собирает это руководство и таблицу для проверки казахских текстов
   gen_stdlib_doc.py   — генерирует docs/STANDARD_LIBRARY.md
   make_book_pdf.js   — печатает раздел «Книга» в docs/QAZAQ_BOOK.pdf (Playwright)
+  make_manual_html.py   — превращает MANUAL.md в читаемую веб-страницу site/dist/manual.html (нужен пакет markdown)
 site/   — сайт
   src/   — исходники сайта
     app.js   — всё поведение сайта (редактор, запуск, вкладки, книга, настройки)

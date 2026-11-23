@@ -43,6 +43,7 @@ E2E_VERBOSE=1 node site/test/e2e.js      # то же с названиями ш�
 ```bash
 python3 scripts/gen_stdlib_doc.py        # docs/STANDARD_LIBRARY.md ← реестр функций
 python3 scripts/gen_manual.py            # docs/MANUAL.md и docs/KAZAKH_MESSAGES_REVIEW.md
+python3 scripts/make_manual_html.py      # site/dist/manual.html — веб-страница руководства (pip install markdown)
 node scripts/make_book_pdf.js            # docs/QAZAQ_BOOK.pdf ← раздел «Книга» (нужен собранный сайт)
 ```
 
