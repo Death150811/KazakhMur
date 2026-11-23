@@ -29,6 +29,9 @@ qaz = "qaz.cli:main"
 [tool.setuptools.packages.find]
 include = ["qaz*"]
 
+[tool.setuptools.package-data]
+qaz = ["messages_kk.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

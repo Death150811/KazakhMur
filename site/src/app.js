@@ -27,6 +27,8 @@ const I18N = {
     lead: 'Пишите код по-казахски и запускайте его прямо здесь. Без установки и без сервера.',
     fact1: 'Точка завершает инструкцию', fact2: 'Казахские буквы везде: ә ғ қ ң ө ұ ү һ і', fact3: 'Работает в браузере, результат мгновенный',
     cta_tour: 'Тур по языку', cta_lib: 'Все функции',
+    settings: 'Настройки', err_lang: 'Ошибки', brackets: 'Скобки', brackets_round: '( ) обычные', brackets_square: '[ ] шаршы', font_size: 'Шрифт', motion: 'Анимации', on: 'вкл', off: 'выкл',
+    brackets_converted: 'Код преобразован: скобки поменялись местами',
     examples: 'Примеры', stdin_btn: 'Ввод', more: 'Ещё', copy_code: 'Копировать код', open_file: 'Открыть файл .qaz', reset: 'Сбросить',
     stdin_label: 'Ввод для енгіз(): каждая строка — один вызов', run: 'Запустить', stop: 'Остановить', clear: 'Очистить', output: 'Вывод',
     about_kicker: 'Язык', about_title: 'Простота снаружи, мощность внутри',
@@ -60,6 +62,8 @@ const I18N = {
     lead: 'Кодты қазақша жазыңыз да, дәл осы жерде іске қосыңыз. Орнату да, сервер де қажет емес.',
     fact1: 'Нүкте нұсқауды аяқтайды', fact2: 'Қазақ әріптері барлық жерде: ә ғ қ ң ө ұ ү һ і', fact3: 'Браузерде жұмыс істейді, нәтиже лезде шығады',
     cta_tour: 'Тілге шолу', cta_lib: 'Барлық функциялар',
+    settings: 'Баптаулар', err_lang: 'Қателер', brackets: 'Жақшалар', brackets_round: '( ) әдеттегі', brackets_square: '[ ] шаршы', font_size: 'Қаріп', motion: 'Анимация', on: 'қосу', off: 'өшіру',
+    brackets_converted: 'Код түрлендірілді: жақшалар орын ауыстырды',
     examples: 'Мысалдар', stdin_btn: 'Енгізу', more: 'Тағы', copy_code: 'Кодты көшіру', open_file: '.qaz файлын ашу', reset: 'Қайта қою',
     stdin_label: 'енгіз() үшін деректер: әр жол — бір шақыру', run: 'Іске қосу', stop: 'Тоқтату', clear: 'Тазалау', output: 'Нәтиже',
     about_kicker: 'Тіл', about_title: 'Қарапайымдылық сыртында, қуат ішінде',
@@ -110,6 +114,8 @@ const t = (key, vars) => {
   return s;
 };
 const pick = (obj) => obj[state.lang] || obj.ru;
+// Язык сообщений об ошибках: выбранный явно или, пока не выбран, язык интерфейса.
+const msgLang = () => { const v = store.get('qazaq.msglang'); return v === 'ru' || v === 'kk' ? v : state.lang; };
 
 function applyI18n() {
   document.documentElement.lang = state.lang;
@@ -447,7 +453,7 @@ function scheduleCheck(delay = 280) {
   checkTimer = setTimeout(checkSyntax, delay);
 }
 function checkSyntax() {
-  const err = engine.check(ta.value);
+  const err = engine.check(ta.value, msgLang());
   const el = $('#syntax');
   if (!err) {
     el.className = 'syntax';
@@ -468,6 +474,7 @@ ta.addEventListener('input', () => {
   updatePos();
   scheduleCheck();
   acUpdate();
+  refreshSettings();
 });
 ta.addEventListener('scroll', () => { syncScroll(); acHide(); });
 ['keyup', 'click', 'select'].forEach((ev) => ta.addEventListener(ev, () => { updatePos(); renderGutterCur(); }));
@@ -485,7 +492,7 @@ function jumpTo(line, column) {
   pos += Math.max((column || 1) - 1, 0);
   ta.focus();
   ta.setSelectionRange(pos, pos);
-  const lh = 22;
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
   ta.scrollTop = Math.max(0, (line - 4) * lh);
   syncScroll(); updatePos(); renderGutterCur();
   $('#pg').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -674,7 +681,7 @@ function updateEngineChip() {
 // Вывод результата
 // ---------------------------------------------------------------------------
 function errorCard(result, code, opts = {}) {
-  const e = result.error;
+  const e = engine.translateError(result.error, msgLang());
   const card = document.createElement('div');
   card.className = 'errcard';
   let html = `<p class="err-title">${esc(e.title)}</p><p class="err-msg">${esc(e.message)}</p>`;
@@ -731,6 +738,7 @@ function renderOutput(container, result, code, opts = {}) {
 
 const consoleBody = $('#consoleBody');
 let lastResult = null;
+let lastCode = '';
 function renderConsoleEmpty() {
   if (lastResult || state.running) return;
   consoleBody.innerHTML = `<p class="empty">${esc(t('empty'))}${IS_MAC ? '⌘' : 'Ctrl'} + Enter${esc(t('empty2'))}</p>`;
@@ -769,6 +777,7 @@ async function run() {
     return;
   }
   lastResult = result;
+  lastCode = code;
   const label = result.status === 'ok' ? t('st_ok') : result.status === 'limit' ? t('st_limit') : t('st_error');
   setStatus(result.status === 'ok' ? 'ok' : result.status === 'limit' ? 'limit' : 'error', label);
   $('#runMeta').textContent = `${ms} ms · ${result.steps.toLocaleString('en-US')} ${t('steps')}`;
@@ -780,6 +789,80 @@ $('#runBtn').addEventListener('click', run);
 $('#stopBtn').addEventListener('click', () => runner.stop());
 $('#clearBtn').addEventListener('click', () => { lastResult = null; setStatus(null); $('#runMeta').textContent = ''; state.err = null; renderEditor(); renderConsoleEmpty(); });
 $('#runKbd').textContent = IS_MAC ? '⌘ ↵' : 'Ctrl ↵';
+
+
+// ---------------------------------------------------------------------------
+// Настройки: режим скобок (с преобразованием кода), размер шрифта, анимации
+// ---------------------------------------------------------------------------
+const PRAGMA_RE = /^[ \t]*[;#]![ \t]*(жақша[ \t]*=[ \t]*шаршы|brackets[ \t]*=[ \t]*square)[ \t]*(?:\n|$)/i;
+const SWAP_BR = { '(': '[', ')': ']', '[': '(', ']': ')' };
+function codeIsSquare(code) {
+  for (const line of code.split('\n').slice(0, 8)) {
+    const l = line.trim();
+    if (!l) continue;
+    if ((l[0] === ';' || l[0] === '#') && l[1] === '!') { if (/(жақша\s*=\s*шаршы|brackets\s*=\s*square)/i.test(l)) return true; continue; }
+    if (l[0] === ';' || l[0] === '#') continue;
+    break;
+  }
+  return false;
+}
+function convertBrackets(code, toSquare) {
+  const swapped = tokenize(code).map((tok) => (tok.c === 't-op' && tok.s.length === 1 && SWAP_BR[tok.s] ? SWAP_BR[tok.s] : tok.s)).join('');
+  if (toSquare) return codeIsSquare(code) ? code : ';! жақша = шаршы\n' + swapped;
+  return swapped.replace(PRAGMA_RE, '');
+}
+function refreshSettings() {
+  const sq = codeIsSquare(ta.value);
+  $('#brRound').setAttribute('aria-pressed', String(!sq));
+  $('#brSquare').setAttribute('aria-pressed', String(sq));
+  $('#errRu').setAttribute('aria-pressed', String(msgLang() === 'ru'));
+  $('#errKk').setAttribute('aria-pressed', String(msgLang() === 'kk'));
+  const off = state.motionOff;
+  $('#motionOn').setAttribute('aria-pressed', String(!off));
+  $('#motionOff').setAttribute('aria-pressed', String(off));
+}
+function setBrackets(square) {
+  if (codeIsSquare(ta.value) === square) { refreshSettings(); return; }
+  let converted;
+  try { converted = convertBrackets(ta.value, square); } catch (e) { return; }
+  setCode(converted);
+  toast(t('brackets_converted'));
+  refreshSettings();
+}
+function applyFontSize(px) {
+  px = Math.max(11, Math.min(22, px));
+  state.fontPx = px;
+  const ed = $('#editor');
+  ed.style.setProperty('--fs', px + 'px');
+  ed.style.setProperty('--lh', Math.round(px * 1.57) + 'px');
+  store.set('qazaq.fs', String(px));
+  renderEditor();
+}
+function setMsgLang(lang) {
+  store.set('qazaq.msglang', lang);
+  refreshSettings();
+  checkSyntax();
+  if (lastResult && lastResult.error) renderOutput(consoleBody, lastResult, lastCode, { jump: true, report: true });
+}
+function applyMotion(off) {
+  state.motionOff = off;
+  document.documentElement.dataset.motion = off ? 'off' : 'on';
+  store.set('qazaq.motion', off ? 'off' : 'on');
+  refreshSettings();
+}
+const settingsBtn = $('#settingsBtn'), settingsMenu = $('#settingsMenu');
+function closeSettings() { settingsMenu.hidden = true; settingsBtn.setAttribute('aria-expanded', 'false'); }
+settingsBtn.addEventListener('click', (e) => { e.stopPropagation(); closeMenu(); settingsMenu.hidden = !settingsMenu.hidden; settingsBtn.setAttribute('aria-expanded', String(!settingsMenu.hidden)); refreshSettings(); });
+document.addEventListener('click', (e) => { if (!settingsMenu.hidden && !settingsMenu.contains(e.target) && e.target !== settingsBtn) closeSettings(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
+$('#brRound').addEventListener('click', () => setBrackets(false));
+$('#brSquare').addEventListener('click', () => setBrackets(true));
+$('#fsDown').addEventListener('click', () => applyFontSize((state.fontPx || 14) - 1));
+$('#fsUp').addEventListener('click', () => applyFontSize((state.fontPx || 14) + 1));
+$('#errRu').addEventListener('click', () => setMsgLang('ru'));
+$('#errKk').addEventListener('click', () => setMsgLang('kk'));
+$('#motionOn').addEventListener('click', () => applyMotion(false));
+$('#motionOff').addEventListener('click', () => applyMotion(true));
 
 // ---------------------------------------------------------------------------
 // Панель: примеры, меню, ввод, файл
@@ -1001,17 +1084,23 @@ $('#langBtn').addEventListener('click', () => {
   applyI18n();
   renderDynamic();
   checkSyntax();
+  refreshSettings();
+  if (lastResult && lastResult.error) renderOutput(consoleBody, lastResult, lastCode, { jump: true, report: true });
 });
 
 // ---------------------------------------------------------------------------
 // Старт
 // ---------------------------------------------------------------------------
 applyTheme(initialTheme());
+state.fontPx = Number(store.get('qazaq.fs')) || 14;
+state.motionOff = store.get('qazaq.motion') === 'off';
 $('#verTag').textContent = 'v' + LANGUAGE.version;
 $('#footVer').textContent = 'Qazaq ' + LANGUAGE.version + ' · MIT';
 ta.value = store.get('qazaq.code') || examples[0].code;
 applyI18n();
 renderDynamic();
+applyFontSize(state.fontPx);
+applyMotion(state.motionOff);
 renderEditor();
 updatePos();
 checkSyntax();

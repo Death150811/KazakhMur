@@ -30,13 +30,13 @@ class ResourceLimitError extends QazaqError {}
 ResourceLimitError.prototype.title = 'Превышен лимит';
 ResourceLimitError.prototype.catchable = false;
 
-function formatError(err, source = null, filename = null) {
+function formatError(err, source = null, filename = null, lang = 'ru') {
   filename = filename || err.filename;
-  const lines = [`${err.title}: ${err.message}`];
+  const lines = [`${translateTitle(err.title, lang)}: ${translateText(err.message, lang)}`];
   if (err.line !== null) {
-    let where = filename ? `  файл ${filename}, ` : '  ';
-    where += `строка ${err.line}`;
-    if (err.col !== null) where += `, столбец ${err.col}`;
+    let where = filename ? `  ${errLabel('file', lang)} ${filename}, ` : '  ';
+    where += `${errLabel('line', lang)} ${err.line}`;
+    if (err.col !== null) where += `, ${errLabel('column', lang)} ${err.col}`;
     lines.push(where);
     if (source !== null) {
       const srcLines = source.replace(/\r\n/g, '\n').split('\n');
@@ -51,13 +51,14 @@ function formatError(err, source = null, filename = null) {
   let trace = err.trace;
   if (trace.length > 8) {
     const skipped = trace.length - 6;
-    trace = [...trace.slice(0, 3), [`… ещё ${skipped} вызовов …`, null], ...trace.slice(-3)];
+    trace = [...trace.slice(0, 3), [errLabel('skipped', lang, { n: skipped }), null], ...trace.slice(-3)];
   }
   for (const [name, line] of trace) {
     if (name.startsWith('…')) { lines.push(`  ${name}`); continue; }
-    lines.push(`  функция ${name}() вызвана ${line !== null ? 'на строке ' + line : '(строка неизвестна)'}`);
+    const loc = line !== null ? errLabel('called_at', lang, { line }) : errLabel('called_unknown', lang);
+    lines.push(errLabel('called', lang, { name, where: loc }));
   }
-  if (err.hint) lines.push(`  Подсказка: ${err.hint}`);
+  if (err.hint) lines.push(`  ${errLabel('hint', lang)}: ${translateText(err.hint, lang)}`);
   return lines.join('\n');
 }
 

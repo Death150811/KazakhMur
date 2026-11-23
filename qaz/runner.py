@@ -2,7 +2,8 @@
 
 Вызывается бэкендом Playground как отдельный процесс:  python -m qaz.runner
 Вход (stdin):  JSON {"code": "...", "stdin": "...", "timeout": 3.0, "max_steps": 3000000,
-                      "max_output": 65536, "max_depth": 300}
+                      "max_output": 65536, "max_depth": 300,
+                      "lang": "ru"|"kk"  (язык сообщений об ошибках)}
 Выход (stdout): JSON {"status": "ok|error|limit", "stdout": "...", "error": {...}|null}
 """
 from __future__ import annotations
@@ -13,6 +14,7 @@ import sys
 
 from .errors import QazaqError, ResourceLimitError
 from .interpreter import Interpreter, Limits
+from .messages import translate_error
 
 
 def execute(payload: dict) -> dict:
@@ -37,6 +39,8 @@ def execute(payload: dict) -> dict:
     except MemoryError:
         status, error = "limit", {"title": "Превышен лимит", "message": "Не хватило памяти",
                                   "line": None, "column": None, "hint": None}
+    if payload.get("lang") == "kk":
+        error = translate_error(error)
     return {"status": status, "stdout": out.getvalue(), "error": error, "steps": interp.steps}
 
 

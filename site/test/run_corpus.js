@@ -5,8 +5,8 @@ const { createQazaqEngine } = require(path.join(__dirname, '..', 'dist', 'engine
 const LANG = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'dist', 'language.json'), 'utf-8'));
 const engine = createQazaqEngine(LANG);
 const items = JSON.parse(fs.readFileSync(0, 'utf-8'));
-const out = items.map(({ name, code, stdin }) => ({
+const out = items.map(({ name, code, stdin, lang }) => ({
   name,
-  result: engine.run(code, { stdin: stdin || '', maxDepth: 150, timeout: 10, maxSteps: 3000000 }),
+  result: engine.run(code, { stdin: stdin || '', maxDepth: 150, timeout: 10, maxSteps: 3000000, lang: lang || 'ru' }),
 }));
 process.stdout.write(JSON.stringify(out));

@@ -48,14 +48,15 @@ function runProgram(source, opts = {}) {
                 line: null, column: null, hint: null, trace: [] };
     }
   }
+  if (opts.lang === 'kk') error = translateErrorDict(error, 'kk');
   return { status, stdout: out.join(''), error, steps: interp.steps };
 }
 
-function checkProgram(source) {
+function checkProgram(source, lang = 'ru') {
   try { parse(source); return null; }
   catch (e) {
-    if (e instanceof QazaqError) return errorToDict(e);
-    if (isStackOverflow(e)) return { title: 'Синтаксическая ошибка', message: 'Слишком глубокая вложенность', line: null, column: null, hint: null, trace: [] };
+    if (e instanceof QazaqError) return translateErrorDict(errorToDict(e), lang);
+    if (isStackOverflow(e)) return translateErrorDict({ title: 'Синтаксическая ошибка', message: 'Слишком глубокая вложенность', line: null, column: null, hint: null, trace: [] }, lang);
     throw e;
   }
 }
@@ -64,6 +65,7 @@ return {
   version: LANG.version,
   run: runProgram,
   check: checkProgram,
+  translateError: translateErrorDict,
   formatError,
   builtinNames: Array.from(BUILTINS.keys()),
   keywordNames: Array.from(KEYWORDS),

@@ -66,6 +66,37 @@
               <select id="exampleSel"><option value="" data-i18n="examples">Примеры</option></select>
             </label>
             <button class="btn btn-ghost btn-sm" id="inputBtn" type="button" aria-expanded="false" aria-controls="stdinBox"><span data-i18n="stdin_btn">Ввод</span></button>
+            <button class="btn btn-ghost btn-sm" id="settingsBtn" type="button" aria-haspopup="true" aria-expanded="false"><span aria-hidden="true">⚙</span><span class="sr-only" data-i18n="settings">Настройки</span></button>
+            <div class="menu settings" id="settingsMenu" hidden role="group">
+              <div class="set-row">
+                <span class="set-label" data-i18n="brackets">Скобки</span>
+                <div class="seg" role="group">
+                  <button type="button" class="seg-btn" id="brRound" data-i18n="brackets_round">( ) обычные</button>
+                  <button type="button" class="seg-btn" id="brSquare" data-i18n="brackets_square">[ ] шаршы</button>
+                </div>
+              </div>
+              <div class="set-row">
+                <span class="set-label" data-i18n="err_lang">Ошибки</span>
+                <div class="seg" role="group">
+                  <button type="button" class="seg-btn" id="errRu">RU</button>
+                  <button type="button" class="seg-btn" id="errKk">ҚАЗ</button>
+                </div>
+              </div>
+              <div class="set-row">
+                <span class="set-label" data-i18n="font_size">Шрифт</span>
+                <div class="seg" role="group">
+                  <button type="button" class="seg-btn" id="fsDown" aria-label="A−">A−</button>
+                  <button type="button" class="seg-btn" id="fsUp" aria-label="A+">A+</button>
+                </div>
+              </div>
+              <div class="set-row">
+                <span class="set-label" data-i18n="motion">Анимации</span>
+                <div class="seg" role="group">
+                  <button type="button" class="seg-btn" id="motionOn" data-i18n="on">вкл</button>
+                  <button type="button" class="seg-btn" id="motionOff" data-i18n="off">выкл</button>
+                </div>
+              </div>
+            </div>
             <button class="btn btn-ghost btn-sm" id="moreBtn" type="button" aria-haspopup="true" aria-expanded="false"><span aria-hidden="true">⋯</span><span class="sr-only" data-i18n="more">Ещё</span></button>
             <div class="menu" id="moreMenu" hidden role="menu">
               <button type="button" role="menuitem" id="copyBtn" data-i18n="copy_code">Копировать код</button>

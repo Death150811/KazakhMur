@@ -49,15 +49,20 @@ class ResourceLimitError(QazaqError):
     catchable = False
 
 
-def format_error(err: QazaqError, source: str | None = None, filename: str | None = None) -> str:
-    """Человекочитаемое сообщение об ошибке со строкой кода и указателем."""
+def format_error(err: QazaqError, source: str | None = None, filename: str | None = None,
+                 lang: str = "ru") -> str:
+    """Человекочитаемое сообщение об ошибке со строкой кода и указателем.
+
+    lang="kk" — подписи, заголовок, сообщение и подсказка на казахском (см. qaz/messages.py)."""
+    from .messages import label, translate, translate_title  # локально: messages читает JSON
+
     filename = filename or err.filename
-    lines = [f"{err.title}: {err.message}"]
+    lines = [f"{translate_title(err.title, lang)}: {translate(err.message, lang)}"]
     if err.line is not None:
-        where = f"  файл {filename}, " if filename else "  "
-        where += f"строка {err.line}"
+        where = f"  {label('file', lang)} {filename}, " if filename else "  "
+        where += f"{label('line', lang)} {err.line}"
         if err.col is not None:
-            where += f", столбец {err.col}"
+            where += f", {label('column', lang)} {err.col}"
         lines.append(where)
         if source is not None:
             src_lines = source.replace("\r\n", "\n").split("\n")
@@ -70,13 +75,13 @@ def format_error(err: QazaqError, source: str | None = None, filename: str | Non
     trace = err.trace
     if len(trace) > 8:  # длинные цепочки рекурсии сокращаем
         skipped = len(trace) - 6
-        trace = trace[:3] + [(f"… ещё {skipped} вызовов …", None)] + trace[-3:]
+        trace = trace[:3] + [(label("skipped", lang).format(n=skipped), None)] + trace[-3:]
     for name, line in trace:
         if name.startswith("…"):
             lines.append(f"  {name}")
             continue
-        loc = f"на строке {line}" if line is not None else "(строка неизвестна)"
-        lines.append(f"  функция {name}() вызвана {loc}")
+        loc = label("called_at", lang).format(line=line) if line is not None else label("called_unknown", lang)
+        lines.append(label("called", lang).format(name=name, where=loc))
     if err.hint:
-        lines.append(f"  Подсказка: {err.hint}")
+        lines.append(f"  {label('hint', lang)}: {translate(err.hint, lang)}")
     return "\n".join(lines)

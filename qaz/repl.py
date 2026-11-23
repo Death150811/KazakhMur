@@ -19,7 +19,7 @@ def _parse(source: str):
     return Parser(Lexer(source).tokenize(), source).parse_program()
 
 
-def run_repl(stdin=None, stdout=None, interactive: bool | None = None) -> int:
+def run_repl(stdin=None, stdout=None, interactive: bool | None = None, lang: str = "ru") -> int:
     stdin = stdin or sys.stdin
     stdout = stdout or sys.stdout
     if interactive is None:
@@ -85,12 +85,12 @@ def run_repl(stdin=None, stdout=None, interactive: bool | None = None) -> int:
             if source.rstrip().endswith(":") and "\n" not in source:
                 buffer = [source]  # начало блока — ждём продолжение
                 continue
-            print(format_error(first_error, source, "<repl>"), file=stdout)
+            print(format_error(first_error, source, "<repl>", lang), file=stdout)
             continue
         try:
             interp.run(program, echo=True)
         except QazaqError as exc:
-            print(format_error(exc, source, "<repl>"), file=stdout)
+            print(format_error(exc, source, "<repl>", lang), file=stdout)
         except KeyboardInterrupt:
             print("(прервано)", file=stdout)
         stdout.flush()

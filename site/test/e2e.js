@@ -107,6 +107,34 @@ const offline = async (page) => page.route('**/*', (r) => {
   await page.click('#themeBtn');
   assert.ok(['dark', 'light'].includes(await page.evaluate(() => document.documentElement.dataset.theme)));
 
+  if (process.env.E2E_VERBOSE) console.log('шаг 11b: настройки: скобки, шрифт, анимации');
+  // 11b. настройки: переключатель скобок преобразует код и он продолжает работать
+  await page.evaluate((c) => window.__qazaq.setCode(c), 'жаз(ұзындық([1, 2, 3]), (1 + 2) * 3).');
+  await page.click('#settingsBtn');
+  await page.click('#brSquare');
+  assert.strictEqual(await page.inputValue('#code'), ';! жақша = шаршы\nжаз[ұзындық[(1, 2, 3)], [1 + 2] * 3].');
+  await page.click('#runBtn');
+  await page.waitForFunction(() => document.querySelector('#consoleBody .stdout') && document.querySelector('#consoleBody .stdout').textContent === '3 9\n');
+  await page.click('#settingsBtn');
+  await page.click('#brRound');
+  assert.strictEqual(await page.inputValue('#code'), 'жаз(ұзындық([1, 2, 3]), (1 + 2) * 3).');
+  const fs0 = await page.$eval('#code', (e) => parseFloat(getComputedStyle(e).fontSize));
+  await page.click('#fsUp');
+  assert.ok((await page.$eval('#code', (e) => parseFloat(getComputedStyle(e).fontSize))) > fs0, 'шрифт не вырос');
+  await page.click('#motionOff');
+  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.motion), 'off');
+  // язык сообщений об ошибках переключается без повторного запуска
+  await page.evaluate((c) => window.__qazaq.setCode(c), 'жаз(1 / 0).');
+  await page.click('#runBtn');
+  await page.waitForSelector('#consoleBody .errcard');
+  await page.click('#settingsBtn');
+  await page.click('#errKk');
+  await page.waitForFunction(() => /Орындау қатесі/.test(document.querySelector('#consoleBody .errcard').textContent));
+  assert.match(await page.textContent('#consoleBody .errcard'), /Нөлге бөлу: нөлге бөлуге болмайды/);
+  await page.click('#errRu');
+  await page.waitForFunction(() => /Ошибка выполнения/.test(document.querySelector('#consoleBody .errcard').textContent));
+  await page.keyboard.press('Escape');
+
   if (process.env.E2E_VERBOSE) console.log('шаг 12: мобильная версия');
   // 12. мобильная версия
   const m = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

@@ -24,6 +24,8 @@ Qazaq — язык программирования на казахском яз
   --safe                 безопасный режим (без файлов и графиков)
   --max-steps N          остановить программу после N шагов
   --timeout СЕК          остановить программу через СЕК секунд
+  --lang ru|kk           язык сообщений об ошибках (также для check и repl;
+                         можно задать переменной окружения QAZAQ_LANG=kk)
 
 Без установки пакета: python -m qaz run ФАЙЛ.qaz
 """
@@ -50,6 +52,13 @@ def _read_file(path: str) -> str | None:
     return None
 
 
+def _msg_lang(args) -> str:
+    """Язык сообщений об ошибках: --lang, иначе переменная QAZAQ_LANG, иначе русский."""
+    import os
+    lang = getattr(args, "lang", None) or os.environ.get("QAZAQ_LANG", "ru")
+    return lang if lang in ("ru", "kk") else "ru"
+
+
 def cmd_run(args) -> int:
     source = _read_file(args.file)
     if source is None:
@@ -60,7 +69,7 @@ def cmd_run(args) -> int:
         interp.run_source(source)
     except QazaqError as exc:
         sys.stdout.flush()
-        print(format_error(exc, source, args.file), file=sys.stderr)
+        print(format_error(exc, source, args.file, _msg_lang(args)), file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("\nПрервано пользователем", file=sys.stderr)
@@ -83,7 +92,7 @@ def cmd_check(args) -> int:
     try:
         Parser(Lexer(source).tokenize(), source).parse_program()
     except QazaqError as exc:
-        print(format_error(exc, source, args.file), file=sys.stderr)
+        print(format_error(exc, source, args.file, _msg_lang(args)), file=sys.stderr)
         return 1
     print(f"{args.file}: синтаксис корректен")
     return 0
@@ -91,7 +100,7 @@ def cmd_check(args) -> int:
 
 def cmd_repl(args) -> int:
     from .repl import run_repl
-    return run_repl()
+    return run_repl(lang=_msg_lang(args))
 
 
 def cmd_version(args) -> int:
@@ -107,11 +116,15 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--safe", action="store_true")
     r.add_argument("--max-steps", type=int, default=None)
     r.add_argument("--timeout", type=float, default=None)
+    r.add_argument("--lang", choices=("ru", "kk"), default=None)
     r.set_defaults(func=cmd_run)
     c = sub.add_parser("check", add_help=False)
     c.add_argument("file")
+    c.add_argument("--lang", choices=("ru", "kk"), default=None)
     c.set_defaults(func=cmd_check)
-    sub.add_parser("repl", add_help=False).set_defaults(func=cmd_repl)
+    rp = sub.add_parser("repl", add_help=False)
+    rp.add_argument("--lang", choices=("ru", "kk"), default=None)
+    rp.set_defaults(func=cmd_repl)
     sub.add_parser("version", add_help=False).set_defaults(func=cmd_version)
     sub.add_parser("help", add_help=False).set_defaults(func=lambda a: _print_help())
     return p

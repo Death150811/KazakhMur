@@ -38,6 +38,10 @@ def normalise(res: dict) -> dict:
     return {"status": res["status"], "stdout": res["stdout"], "error": err}
 
 
+def node_results_lang(items: list[dict]) -> dict:
+    return node_results(items)
+
+
 def node_results(items: list[dict]) -> dict:
     subprocess.run([sys.executable, str(ROOT / "scripts" / "build_site.py")], check=True,
                    capture_output=True, cwd=ROOT)

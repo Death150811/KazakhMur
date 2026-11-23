@@ -17,8 +17,10 @@ def language_definition() -> dict:
     fn_aliases: dict[str, list[str]] = {}
     for alias_name, main in ALIASES.items():
         fn_aliases.setdefault(main, []).append(alias_name)
+    from .messages import catalog
     return {
         "version": __version__,
+        "messages_kk": catalog(),
         "keywords": [{"name": k, "aliases": kw_aliases.get(k, []), "equivalent": v[0],
                       "description": v[1]} for k, v in KEYWORD_INFO.items()],
         "builtins": [{"name": b.name, "aliases": fn_aliases.get(b.name, []), "category": b.category,
