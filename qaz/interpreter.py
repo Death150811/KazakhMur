@@ -108,7 +108,8 @@ class Interpreter:
         except (_Return, _Break, _Continue):  # защитные: парсер такого не пропускает
             raise QazaqRuntimeError("Недопустимое использование управляющей инструкции")
         except RecursionError:
-            raise QazaqRuntimeError("Слишком глубокая вложенность выражений или вызовов")
+            raise QazaqRuntimeError("Слишком глубокая вложенность выражений или вызовов",
+                                    hint="Проверьте условие выхода из рекурсии или упростите вложенность.")
         except QazaqError as exc:
             if exc.filename is None:
                 exc.filename = self.filename

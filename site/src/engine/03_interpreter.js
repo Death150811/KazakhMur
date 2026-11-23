@@ -46,7 +46,7 @@ class Interpreter {
     } catch (e) {
       if (e instanceof ReturnSignal || e instanceof BreakSignal || e instanceof ContinueSignal)
         throw new QazaqRuntimeError('Недопустимое использование управляющей инструкции');
-      if (isStackOverflow(e)) throw new QazaqRuntimeError('Слишком глубокая вложенность выражений или вызовов');
+      if (isStackOverflow(e)) throw new QazaqRuntimeError('Слишком глубокая вложенность выражений или вызовов', null, null, 'Проверьте условие выхода из рекурсии или упростите вложенность.');
       throw e;
     }
   }
@@ -197,7 +197,7 @@ class Interpreter {
       try { this.runBlock(node.body, env); }
       catch (exc) {
         let e = exc;
-        if (isStackOverflow(e)) e = new QazaqRuntimeError('Слишком глубокая вложенность выражений или вызовов');
+        if (isStackOverflow(e)) e = new QazaqRuntimeError('Слишком глубокая вложенность выражений или вызовов', null, null, 'Проверьте условие выхода из рекурсии или упростите вложенность.');
         if (!(e instanceof QazaqError) || node.catchBody === null || !e.catchable) throw exc;
         const cenv = new Env(env);
         if (node.catchName) cenv.declare(node.catchName, e.message);

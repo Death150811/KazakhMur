@@ -1004,7 +1004,7 @@ $('#langBtn').addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 applyTheme(initialTheme());
 $('#verTag').textContent = 'v' + LANGUAGE.version;
-$('#footVer').textContent = 'Qazaq ' + LANGUAGE.version + ' · MIT';
+$('#footVer').textContent = 'Qazaq ' + LANGUAGE.version;
 ta.value = store.get('qazaq.code') || examples[0].code;
 applyI18n();
 renderDynamic();

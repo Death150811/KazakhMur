@@ -40,7 +40,8 @@ function runProgram(source, opts = {}) {
     else if (isStackOverflow(e)) {
       status = 'error';
       error = { type: 'QazaqRuntimeError', title: QazaqRuntimeError.prototype.title,
-                message: 'Слишком глубокая вложенность выражений или вызовов', line: null, column: null, hint: null, trace: [] };
+                message: 'Слишком глубокая вложенность выражений или вызовов', line: null, column: null,
+                hint: 'Проверьте условие выхода из рекурсии или упростите вложенность.', trace: [] };
     } else {
       status = 'error';
       error = { type: 'InternalError', title: 'Внутренняя ошибка', message: String(e && e.message || e),
