@@ -45,6 +45,7 @@ python3 scripts/gen_stdlib_doc.py        # docs/STANDARD_LIBRARY.md ← реес
 python3 scripts/gen_manual.py            # docs/MANUAL.md и docs/KAZAKH_MESSAGES_REVIEW.md
 python3 scripts/make_manual_html.py      # site/dist/manual.html — веб-страница руководства (pip install markdown)
 node scripts/make_manual_pdf.js          # docs/MANUAL.pdf — печать веб-версии (после предыдущей команды)
+python3 scripts/make_archive.py          # archive_out/qazaq-full-archive.zip — архив «всё о проекте» (руководства, сайт, код с историей git, ссылки, промпт для ИИ)
 node scripts/make_book_pdf.js            # docs/QAZAQ_BOOK.pdf ← раздел «Книга» (нужен собранный сайт)
 ```
 
