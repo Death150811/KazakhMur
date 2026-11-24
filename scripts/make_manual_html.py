@@ -76,6 +76,22 @@ main tr:last-child td { border-bottom: 0; }
 main hr { border: 0; border-top: 2px solid var(--line); margin: 2em 0; }
 :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .toc-mobile { display: none; }
+@media print {
+  @page { size: A4; margin: 14mm 12mm; }
+  :root, :root[data-theme="dark"] { --bg: #fff; --paper: #fff; --paper-2: #eef3f5; --ink: #111; --ink-2: #222; --ink-3: #444; --line: #aab; --sky: #0b4f6c;
+    --code-bg: #f3f6f8; --code-ink: #0a1b2a; --code-inline: #eef2f4; --shade: transparent; color-scheme: light; }
+  .side, .toc-mobile { display: none !important; }
+  .wrap { display: block; padding: 0; }
+  main h1 { break-before: page; box-shadow: none; border: 2px solid #111; background: #fff; color: #111; }
+  main h1:first-child { break-before: auto; }
+  main h2, main h3 { break-after: avoid; }
+  main pre { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #889; font-size: 9.5px; break-inside: avoid; }
+  .tw { overflow: visible; break-inside: auto; }
+  main table { font-size: 10px; }
+  main th { position: static; }
+  main tr { break-inside: avoid; }
+  main a { color: inherit; text-decoration: none; }
+}
 @media (max-width: 900px) {
   .wrap { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .side { display: none; }

@@ -232,6 +232,19 @@ def _map(interp, fn, items):
     return [interp.call_value(fn, [x]) for x in as_list("бейнеле", items)]
 
 
+@builtin("топта", 2, 2, sig="топта(функция, коллекция)",
+         doc="Группирует элементы в сөздік: ключ — результат функции, значение — список элементов с этим ключом (порядок — по первому появлению).")
+def _group(interp, fn, items):
+    out: dict = {}
+    for x in as_list("топта", items):
+        key = interp.call_value(fn, [x])
+        try:
+            out.setdefault(key, []).append(x)
+        except TypeError:
+            rt_error("«топта»: ключ группы не может быть изменяемым значением (тізім/сөздік/жиын)")
+    return out
+
+
 @builtin("кері", 1, 1, sig="кері(x)", doc="Копия в обратном порядке (тізім, мәтін, аралық).")
 def _reverse(interp, x):
     if isinstance(x, str):
@@ -287,6 +300,39 @@ def _divmod(interp, a, b):
 
 
 # ---------------- методы мәтін ----------------
+@method(str, "сандық", doc="Истина, если строка не пуста и состоит только из цифр 0–9.", sig=".сандық()")
+def _s_isdigit(interp, s):
+    return s != "" and all("0" <= ch <= "9" for ch in s)
+
+
+@method(str, "әріптік", doc="Истина, если строка не пуста и состоит только из букв (любого алфавита).", sig=".әріптік()")
+def _s_isalpha(interp, s):
+    return s.isalpha()
+
+
+_MAX_PAD = 1_000_000
+
+
+@method(str, "толтыр", 1, 2, sig=".толтыр(длина, символ=\" \")",
+        doc="Дополняет строку слева символом до заданной длины: \"7\".толтыр(3, \"0\") даёт \"007\". Длиннее — без изменений.")
+def _s_pad(interp, s, length, fill=" "):
+    expect_int("толтыр", length, "длина")
+    if not isinstance(fill, str) or len(fill) != 1:
+        rt_error("«толтыр»: символ заполнения должен быть строкой из одного символа")
+    if length > _MAX_PAD:
+        rt_error(f"«толтыр»: длина слишком велика (максимум {_MAX_PAD})")
+    return fill * max(length - len(s), 0) + s
+
+
+@method(str, "жолдар", sig=".жолдар()", doc="Список строк: разбивает по переводам строки (\\n, \\r\\n, \\r); пустая строка даёт пустой список.")
+def _s_lines(interp, s):
+    import re
+    parts = re.split(r"\r\n|\r|\n", s)
+    if parts and parts[-1] == "":
+        parts.pop()
+    return parts
+
+
 @method(str, "жоғары", doc="Верхний регистр.")
 def _s_upper(interp, s):
     return s.upper()

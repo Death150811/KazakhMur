@@ -78,6 +78,8 @@ PURPOSE = {
     "qaz/tokens.py": "виды токенов, таблица ключевых слов и синонимов",
     "scripts/build_site.py": "собирает site/dist/index.html, fragment.html, engine.js, language.json",
     "scripts/gen_manual.py": "собирает это руководство и таблицу для проверки казахских текстов",
+    "scripts/make_manual_pdf.js": "печатает веб-версию руководства в docs/MANUAL.pdf (Playwright)",
+    "docs/MANUAL.pdf": "PDF-версия руководства (для чтения на телефоне)",
     "scripts/make_manual_html.py": "превращает MANUAL.md в читаемую веб-страницу site/dist/manual.html (нужен пакет markdown)",
     "scripts/gen_stdlib_doc.py": "генерирует docs/STANDARD_LIBRARY.md",
     "scripts/make_book_pdf.js": "печатает раздел «Книга» в docs/QAZAQ_BOOK.pdf (Playwright)",

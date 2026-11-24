@@ -312,6 +312,20 @@ def('сұрып', 1, 2, (it, items, reverse, opts) => {
 });
 def('сүз', 2, 2, (it, fn, items) => asList('сүз', items).filter((x) => truthy(it.callValue(fn, [x]))));
 def('бейнеле', 2, 2, (it, fn, items) => asList('бейнеле', items).map((x) => it.callValue(fn, [x])));
+def('топта', 2, 2, (it, fn, items) => {
+  const out = new QDict();
+  for (const x of asList('топта', items)) {
+    const key = it.callValue(fn, [x]);
+    try {
+      const cur = out.get(key);
+      if (cur === undefined) out.set(key, [x]); else cur.push(x);
+    } catch (e) {
+      if (e instanceof Unhashable) throw rtError('«топта»: ключ группы не может быть изменяемым значением (тізім/сөздік/жиын)');
+      throw e;
+    }
+  }
+  return out;
+});
 def('кері', 1, 1, (it, x) => {
   if (typeof x === 'string') return strChars(x).reverse().join('');
   if (Array.isArray(x) || x instanceof QRange || x instanceof QTuple) return asList('кері', x).reverse();
@@ -347,6 +361,17 @@ def('бөлінді', 2, 2, (it, a, b) => {
 });
 
 // ---------------- методы мәтін ----------------
+method('str', 'сандық', 0, 0, (it, s) => /^[0-9]+$/.test(s));
+method('str', 'әріптік', 0, 0, (it, s) => /^\p{L}+$/u.test(s));
+const MAX_PAD = 1000000;
+method('str', 'толтыр', 1, 2, (it, s, length, fill = ' ') => {
+  expectInt('толтыр', length, 'длина');
+  if (typeof fill !== 'string' || strLen(fill) !== 1) throw rtError('«толтыр»: символ заполнения должен быть строкой из одного символа');
+  if (length > BigInt(MAX_PAD)) throw rtError(`«толтыр»: длина слишком велика (максимум ${MAX_PAD})`);
+  const need = Number(length) - strLen(s);
+  return (need > 0 ? fill.repeat(need) : '') + s;
+});
+method('str', 'жолдар', 0, 0, (it, s) => { const parts = s.split(/\r\n|\r|\n/); if (parts.length && parts[parts.length - 1] === '') parts.pop(); return parts; });
 method('str', 'жоғары', 0, 0, (it, s) => s.toUpperCase());
 method('str', 'төмен', 0, 0, (it, s) => s.toLowerCase());
 method('str', 'тазала', 0, 0, (it, s) => s.trim());
